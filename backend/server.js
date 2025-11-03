@@ -14,7 +14,6 @@ const sendSMS = require("./configs/twilio");
 const dayjs = require("dayjs");
 const { pusher } = require("./configs/pusher");
 
-// Carregando variáveis de ambiente
 const envFile =
   process.env.NODE_ENV == "development"
     ? ".env.development"
@@ -25,34 +24,26 @@ const envFile =
         : ".env";
 
 env.config({ path: path.resolve(__dirname, envFile), override: true });
+const PORT = process.env.PORT || 8000;
+const HOST = process.env.HOST || "0.0.0.0";
 
-// Usando a variável de ambiente PORT, ou 8000 como fallback
-const PORT = process.env.PORT || 8000; 
-// Usando 0.0.0.0 para permitir conexões de todas as interfaces
-const HOST = "0.0.0.0";
-
-// Configuração de CORS (Declarar uma vez)
 const corsOptions = {
   origin: process.env.FRONTEND_URL || "http://localhost:3000", // Use o valor de FRONTEND_URL ou localhost como fallback
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-// Configuração do CORS
-app.use(cors(corsOptions));
+app.use(cors(corsOptions)); // Habilitar CORS para o backend
 
-// Registrando rotas de push
-app.use("/api/push", pushRoutes);
+app.use("/api/push", pushRoutes);  // Registra a rota de push no caminho '/api/push'
 
-// Iniciando o servidor na porta definida
 app.listen(PORT, HOST, () => {
-  logger.info(`🚀 Server is listening at http://localhost:${PORT}
+  logger.info(`🚀 Server is listening at http://${HOST}:${PORT}
   🌍 Environment: ${process.env.NODE_ENV || "live"}
   ⚙️ Loaded Config from: ${envFile}
   🧪 TEST_VAR: ${process.env.TEST_VAR}`);
 });
 
-// Configuração de cron jobs
 cron.schedule("*/1 * * * *", async () => {
   const currentDate = dayjs().toISOString();
 
