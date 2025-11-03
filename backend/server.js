@@ -136,47 +136,51 @@ cron.schedule("*/1 * * * *", async () => {
         }
 
         try {
-          // Buscar tokens do usuário
-          const tokens = await prisma.push_token.findMany({
-            where: { user_id: item.user.id },
-            select: { token: true },
-          });
+  // Buscar tokens do usuário
+  const tokens = await prisma.push_token.findMany({
+    where: { user_id: item.user.id },
+    select: { token: true },
+  });
 
-          const registrationTokens = tokens.map(t => t.token).filter(Boolean);
-          if (registrationTokens.length) {
-            const message = {
-              tokens: registrationTokens,
-              notification: {
-                title: `${title || "Reminder"}`,
-                body: `${description || item.message || "You have a reminder."}`,
-              },
-              data: {
-                type: type,
-                id: String(item.id),
-              },
-            };
+  const registrationTokens = tokens.map(t => t.token).filter(Boolean);
+  if (registrationTokens.length) {
+    const message = {
+      tokens: registrationTokens,
+      notification: {
+        title: `${title || "Reminder"}`,
+        body: `${description || item.message || "You have a reminder."}`,
+      },
+      data: {
+        type: type,
+        id: String(item.id),
+      },
+    };
 
-            // Usando o sendMulticast para enviar a notificação para múltiplos tokens (Versão < 13.7.0)
-            const response = await messaging.sendMulticast(message);
+    // ✅ Novo método no SDK 13+
+    const { getMessaging } = require("firebase-admin/messaging");
+    const messagingClient = getMessaging();
 
-            // Opcional: limpar tokens inválidos
-            if (response.failureCount > 0) {
-              const failedTokens = [];
-              response.responses.forEach((resp, idx) => {
-                if (!resp.success) {
-                  failedTokens.push(registrationTokens[idx]);
-                }
-              });
-              if (failedTokens.length) {
-                await prisma.push_token.deleteMany({
-                  where: { token: { in: failedTokens } },
-                });
-              }
-            }
-          }
-        } catch (err) {
-          console.error("FCM send error:", err);
-        }
+    const response = await messagingClient.sendEachForMulticast(message);
+
+    console.log(`✅ FCM enviado: ${response.successCount} sucesso(s), ${response.failureCount} falha(s)`);
+
+    // Limpar tokens inválidos
+    if (response.failureCount > 0) {
+      const failedTokens = [];
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) failedTokens.push(registrationTokens[idx]);
+      });
+      if (failedTokens.length) {
+        await prisma.push_token.deleteMany({
+          where: { token: { in: failedTokens } },
+        });
+        console.warn(`🧹 Tokens inválidos removidos: ${failedTokens.length}`);
+      }
+    }
+  }
+} catch (err) {
+  console.error("FCM send error:", err);
+}
 
         await prisma[type].update({
           where: { id: item.id },
