@@ -52,23 +52,7 @@ app.listen(PORT, HOST, () => {
   🧪 TEST_VAR: ${process.env.TEST_VAR}`);
 });
 
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || "http://localhost:3000", // Use o valor de FRONTEND_URL ou localhost como fallback
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-
-app.use(cors(corsOptions)); // Habilitar CORS para o backend
-
-app.use("/api/push", pushRoutes);  // Registra a rota de push no caminho '/api/push'
-
-app.listen(PORT, HOST, () => {
-  logger.info(`🚀 Server is listening at http://${HOST}:${PORT}
-  🌍 Environment: ${process.env.NODE_ENV || "live"}
-  ⚙️ Loaded Config from: ${envFile}
-  🧪 TEST_VAR: ${process.env.TEST_VAR}`);
-});
-
+// Configuração de cron jobs
 cron.schedule("*/1 * * * *", async () => {
   const currentDate = dayjs().toISOString();
 
