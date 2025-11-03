@@ -31,7 +31,7 @@ const PORT = process.env.PORT || 8000;
 // Usando 0.0.0.0 para permitir conexões de todas as interfaces
 const HOST = "0.0.0.0";
 
-// Configuração de CORS
+// Configuração de CORS (Declarar uma vez)
 const corsOptions = {
   origin: process.env.FRONTEND_URL || "http://localhost:3000", // Use o valor de FRONTEND_URL ou localhost como fallback
   methods: ["GET", "POST", "PUT", "DELETE"],
