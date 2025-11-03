@@ -1,0 +1,8 @@
+# Configs e credenciais
+.env
+*.env
+firebaseServiceAccount.json
+
+# Dependências
+node_modules/
+.env.*
