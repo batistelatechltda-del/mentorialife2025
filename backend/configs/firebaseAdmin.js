@@ -2,7 +2,7 @@ const admin = require("firebase-admin");
 const path = require("path");
 const fs = require("fs");
 
-let initialized = true;
+let initialized = false;
 
 // 1️⃣ Inicializa via variáveis de ambiente (para produção)
 if (process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
@@ -32,9 +32,10 @@ if (process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
   }
 }
 
-// 2️⃣ Caso contrário, tenta arquivo local (dev)
+// 2️⃣ Caso contrário, tenta arquivo secreto ou local
 if (!initialized) {
-  const serviceAccountPath = path.join(__dirname, "firebaseServiceAccount.json");
+  const serviceAccountPath =
+    process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "/etc/secrets/firebaseServiceAccount.json";
 
   if (fs.existsSync(serviceAccountPath)) {
     const serviceAccount = require(serviceAccountPath);
@@ -42,7 +43,7 @@ if (!initialized) {
       credential: admin.credential.cert(serviceAccount),
     });
     initialized = true;
-    console.log("✅ Firebase Admin initialized via local file");
+    console.log(`✅ Firebase Admin initialized via file: ${serviceAccountPath}`);
   } else {
     console.error("⚠️ FIREBASE SERVICE ACCOUNT not configured. Push notifications will not work.");
   }
