@@ -1,5 +1,4 @@
-import admin from "firebase-admin";
-const { messaging } = require("./configs/firebaseAdmin");  // Supondo que o arquivo firebaseAdmin já exporte 'messaging'
+const { messaging } = require("./configs/firebaseAdmin");
 const env = require("dotenv");
 const path = require("path");
 const cron = require("node-cron");
@@ -28,11 +27,10 @@ env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || "192.168.18.71";
 
-// Configuração do CORS
 const corsOptions = {
-  origin: "http://localhost:3000", // Permitir requisições de localhost:3000
-  methods: ["GET", "POST", "PUT", "DELETE"], // Métodos permitidos
-  allowedHeaders: ["Content-Type", "Authorization"], // Cabeçalhos permitidos
+  origin: process.env.FRONTEND_URL || "http://localhost:3000", // Use o valor de FRONTEND_URL ou localhost como fallback
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
 app.use(cors(corsOptions)); // Habilitar CORS para o backend
@@ -144,7 +142,6 @@ cron.schedule("*/1 * * * *", async () => {
             select: { token: true },
           });
 
-          // ✅ Novo método compatível com firebase-admin >= 13.0.0
           const registrationTokens = tokens.map(t => t.token).filter(Boolean);
           if (registrationTokens.length) {
             const message = {
