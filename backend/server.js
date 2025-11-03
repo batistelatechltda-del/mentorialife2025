@@ -1,8 +1,7 @@
 import admin from "firebase-admin";
-const { messaging } = require("./configs/firebaseAdmin");
+const { messaging } = require("./configs/firebaseAdmin");  // Supondo que o arquivo firebaseAdmin já exporte 'messaging'
 const env = require("dotenv");
 const path = require("path");
-const messaging = admin.messaging();
 const cron = require("node-cron");
 const app = require("./app");
 const cors = require("cors");
@@ -11,7 +10,6 @@ const { createAndSendEmail } = require("./configs/email");
 const { prisma } = require("./configs/prisma");
 const pushRoutes = require("./routes/push");  // Importa as rotas de push
 const { emailTemplateForReminder } = require("./email/emailTemplateForReminder");
-
 
 const sendSMS = require("./configs/twilio");
 const dayjs = require("dayjs");
@@ -29,7 +27,6 @@ const envFile =
 env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || "192.168.18.71";
-
 
 // Configuração do CORS
 const corsOptions = {
@@ -147,8 +144,7 @@ cron.schedule("*/1 * * * *", async () => {
             select: { token: true },
           });
 
-
-    // ✅ Novo método compatível com firebase-admin >= 13.0.0
+          // ✅ Novo método compatível com firebase-admin >= 13.0.0
           const registrationTokens = tokens.map(t => t.token).filter(Boolean);
           if (registrationTokens.length) {
             const message = {
@@ -165,7 +161,6 @@ cron.schedule("*/1 * * * *", async () => {
 
             // Usando o sendMulticast para enviar a notificação para múltiplos tokens (Versão < 13.7.0)
             const response = await messaging.sendMulticast(message);
-
 
             // Opcional: limpar tokens inválidos
             if (response.failureCount > 0) {
