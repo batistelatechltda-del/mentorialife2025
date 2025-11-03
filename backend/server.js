@@ -25,7 +25,8 @@ const envFile =
 
 env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
-const HOST = process.env.HOST || "192.168.18.71";
+// Substituindo o HOST pela URL da hospedagem
+const HOST = "https://mentorialife-backend.onrender.com";
 
 const corsOptions = {
   origin: process.env.FRONTEND_URL || "http://localhost:3000", // Use o valor de FRONTEND_URL ou localhost como fallback
