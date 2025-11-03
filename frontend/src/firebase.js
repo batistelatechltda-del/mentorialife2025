@@ -1,8 +1,6 @@
-// src/firebase.js
-import { initializeApp } from "firebase/app";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { initializeApp, getApps } from "firebase/app";
+import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 
-// Configuração do Firebase
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,32 +11,30 @@ const firebaseConfig = {
   measurementId: "G-3QLVFTGVX7",
 };
 
-// Inicializa o app (seguro para SSR)
-const app = initializeApp(firebaseConfig);
-
-// Inicializa o Messaging **somente no navegador**
-let messaging;
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-  try {
-    messaging = getMessaging(app);
-  } catch (err) {
-    console.warn("⚠️ Erro ao inicializar Messaging:", err);
-  }
+// ⚙️ Inicializa Firebase apenas uma vez
+let app;
+if (typeof window !== "undefined") {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 }
 
-// Exporta inicializador
+let messaging = null;
 export const initFirebase = () => app;
 
-// Solicita permissão e registra o token
+// 📲 Solicita permissão e registra token
 export const requestPermissionAndRegisterToken = async (userId) => {
-  if (typeof window === "undefined") return null; // evita SSR crash
+  if (typeof window === "undefined") return null;
 
   try {
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      console.warn("Permissão negada para notificações");
+    const supported = await isSupported();
+    if (!supported) {
+      console.warn("⚠️ FCM não suportado neste navegador");
       return null;
     }
+
+    if (!messaging) messaging = getMessaging(app);
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return null;
 
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
     const token = await getToken(messaging, { vapidKey });
@@ -46,11 +42,7 @@ export const requestPermissionAndRegisterToken = async (userId) => {
     console.log("✅ Token gerado:", token);
 
     if (token) {
-      // Usando a URL configurada no .env.local
-      const backendUrl = process.env.NEXT_PUBLIC_BASE_URL_SERVER;
-      console.log("Backend URL:", backendUrl); // Verifique a URL no console
-
-      await fetch(`${backendUrl}/api/push/register`, {
+      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL_SERVER}/api/push/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, token }),
@@ -59,20 +51,24 @@ export const requestPermissionAndRegisterToken = async (userId) => {
 
     return token;
   } catch (error) {
-    console.error("❌ Erro ao obter token FCM:", error);
+    console.error("❌ Erro ao registrar token:", error);
     return null;
   }
 };
 
-// Recebe mensagens em foreground
-export const listenForForegroundMessages = () => {
-  if (!messaging) return;
+// 🔔 Foreground notifications
+export const listenForForegroundMessages = async () => {
+  if (typeof window === "undefined") return;
+
+  const supported = await isSupported();
+  if (!supported) return;
+
+  if (!messaging) messaging = getMessaging(app);
 
   onMessage(messaging, (payload) => {
     console.log("📩 Notificação recebida:", payload);
-
+    const { title, body } = payload.notification || {};
     if (Notification.permission === "granted") {
-      const { title, body } = payload.notification || {};
       new Notification(title || "Nova mensagem", { body });
     }
   });
