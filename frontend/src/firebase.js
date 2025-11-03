@@ -1,3 +1,4 @@
+// src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
@@ -39,11 +40,8 @@ export const requestPermissionAndRegisterToken = async (userId) => {
       return null;
     }
 
-    // Aguarda o Service Worker registrar antes de continuar
-    const registration = await navigator.serviceWorker.ready;
-
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
-    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
+    const token = await getToken(messaging, { vapidKey });
 
     console.log("✅ Token gerado:", token);
 
