@@ -142,51 +142,50 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
     const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+  if (!inputValue.trim() || isLoading) return;
 
-    // Adiciona a mensagem do usuário ao estado
-    const userMessage = {
-      id: Date.now().toString(),
-      message: inputValue.trim(),
-      sender: "USER",
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setIsLoading(true);
-    setIsTyping(true);
-
-    try {
-      const payload = {
-        message: userMessage.message,
-      };
-      const response = await API.createMessage(payload);
-
-      // Adiciona a resposta do mentor (AI)
-      setTimeout(() => {
-        const aiMessage = {
-          id: (Date.now() + 1).toString(),
-          message: response.data.reply || "I'm here to help!",
-          sender: "mentor",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, aiMessage]);
-        setIsTyping(false);
-      }, 1000);
-
-      // Agora que o usuário enviou a mensagem, solicite permissão para notificações
-      if (user?.id) {
-        await requestPermissionAndRegisterToken(user.id);
-      }
-      
-      router.refresh();
-    } catch (error) {
-      setIsTyping(false);
-    } finally {
-      setIsLoading(false);
-    }
+  // Adiciona a mensagem do usuário ao estado
+  const userMessage: Message = {
+    id: Date.now().toString(),
+    message: inputValue.trim(),
+    sender: "USER", // Certifique-se de que 'USER' é um valor válido
+    timestamp: new Date(),
   };
+  setMessages((prev) => [...prev, userMessage]);
+  setInputValue("");
+  setIsLoading(true);
+  setIsTyping(true);
 
+  try {
+    const payload = {
+      message: userMessage.message,
+    };
+    const response = await API.createMessage(payload);
+
+    // Adiciona a resposta do mentor (AI)
+    setTimeout(() => {
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        message: response.data.reply || "I'm here to help!",
+        sender: "mentor", // Certifique-se de que 'mentor' é um valor válido
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+      setIsTyping(false);
+    }, 1000);
+
+    // Agora que o usuário enviou a mensagem, solicite permissão para notificações
+    if (user?.id) {
+      await requestPermissionAndRegisterToken(user.id);
+    }
+
+    router.refresh();
+  } catch (error) {
+    setIsTyping(false);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const startRecording = async () => {
     try {
