@@ -24,20 +24,29 @@ exports.registerPushToken = async (req, res) => {
   }
 };
 
-// Enviar notificação (teste manual)
 exports.sendPushNotification = async (req, res) => {
   try {
     const { title, body, token } = req.body;
+
+    if (!title || !body || !token) {
+      return res.status(400).json({ error: "Missing title, body or token" });
+    }
 
     const message = {
       notification: { title, body },
       token,
     };
 
-    const response = await admin.messaging().send(message);
-    res.json({ success: true, response });
+    // Verifica se o token FCM é válido
+    try {
+      await admin.messaging().send(message);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Error sending push notification:", err);
+      res.status(500).json({ error: "Failed to send push notification" });
+    }
   } catch (err) {
     console.error("Error sending push:", err);
-    res.status(500).json({ error: "Failed to send push" });
+    res.status(500).json({ error: "Failed to send push notification" });
   }
 };
