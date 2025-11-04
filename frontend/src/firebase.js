@@ -1,6 +1,6 @@
 // frontend/src/firebase.js
 import { initializeApp } from "firebase/app";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -15,16 +15,27 @@ const firebaseConfig = {
 let app;
 let messaging;
 
-export const initFirebase = () => {
+export const initFirebase = async () => {
   if (typeof window === "undefined") return null;
+
   if (!app) {
     app = initializeApp(firebaseConfig);
+    console.log("🔥 Firebase app inicializado");
   }
+
+  // Verifica se o navegador suporta FCM (importante no Safari/iOS)
+  const supported = await isSupported();
+  if (!supported) {
+    console.warn("⚠️ Este navegador não suporta Firebase Cloud Messaging.");
+    return null;
+  }
+
   if (!messaging) {
     try {
       messaging = getMessaging(app);
+      console.log("💬 Firebase Messaging inicializado com sucesso");
     } catch (err) {
-      console.warn("Erro ao inicializar messaging:", err);
+      console.error("❌ Erro ao inicializar messaging:", err);
     }
   }
   return app;
@@ -33,57 +44,72 @@ export const initFirebase = () => {
 async function ensureSWRegistered() {
   if (typeof window === "undefined") return null;
   if (!("serviceWorker" in navigator)) {
-    console.warn("Service Worker not supported in this browser.");
+    console.warn("⚠️ Service Worker não suportado neste navegador.");
     return null;
   }
   try {
-    // Register if not present - but registering the file should be done from app's root
     const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-    console.log("Service Worker registrado:", reg.scope);
+    console.log("✅ Service Worker registrado:", reg.scope);
     return reg;
   } catch (err) {
-    // If already registered, navigator.serviceWorker.ready will resolve
-    console.warn("Failed to register SW (ok if already registered):", err);
+    console.warn("⚠️ Falha ao registrar SW (ok se já registrado):", err);
     return null;
   }
 }
 
-// request permission and register token (call after login + redirect to dashboard)
 export const requestPermissionAndRegisterToken = async (userId) => {
   if (typeof window === "undefined") return null;
+
   try {
+    // ✅ Garante inicialização do Firebase e Messaging antes de tudo
+    if (!messaging) {
+      await initFirebase();
+      if (!messaging) {
+        console.error("❌ Messaging ainda indefinido após initFirebase");
+        return null;
+      }
+    }
+
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
-      console.warn("Permissão de notificação não concedida");
+      console.warn("🚫 Permissão de notificação não concedida");
       return null;
     }
 
-    // ensure SW (try register) and wait ready
     await ensureSWRegistered();
     const registration = await navigator.serviceWorker.ready;
 
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+    if (!vapidKey) {
+      console.error("❌ NEXT_PUBLIC_FIREBASE_VAPID_KEY não configurada");
+      return null;
+    }
+
+    console.log("🔑 VAPID Key carregada:", vapidKey ? "ok" : "faltando");
+
     const token = await getToken(messaging, {
       vapidKey,
       serviceWorkerRegistration: registration,
     });
 
+    if (!token) {
+      console.error("⚠️ Nenhum token retornado pelo Firebase");
+      return null;
+    }
+
     console.log("✅ Token gerado:", token);
 
-    if (!token) return null;
-
-    // If user is authenticated in Firebase Auth, get idToken and send in Authorization header
     const auth = getAuth();
     let idToken = null;
-    if (auth && auth.currentUser) {
+    if (auth?.currentUser) {
       idToken = await auth.currentUser.getIdToken();
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_BASE_URL_SERVER || "https://mentorialife-backend.onrender.com";
+    const backendUrl =
+      process.env.NEXT_PUBLIC_BASE_URL_SERVER ||
+      "https://mentorialife-backend.onrender.com";
 
-    const headers = {
-      "Content-Type": "application/json",
-    };
+    const headers = { "Content-Type": "application/json" };
     if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
 
     const res = await fetch(`${backendUrl}/api/push/register`, {
@@ -105,13 +131,14 @@ export const requestPermissionAndRegisterToken = async (userId) => {
   }
 };
 
-// foreground message handler
 export const listenForForegroundMessages = (onPayload) => {
-  if (!messaging) return;
+  if (!messaging) {
+    console.warn("⚠️ Messaging não inicializado para listener.");
+    return;
+  }
   onMessage(messaging, (payload) => {
-    console.log("📩 Foreground message:", payload);
+    console.log("📩 Foreground message recebida:", payload);
     if (typeof onPayload === "function") onPayload(payload);
-    // example: show Notification (careful with duplicates)
     const { title, body } = payload.notification || {};
     if (Notification.permission === "granted" && title) {
       new Notification(title, { body });
