@@ -34,8 +34,7 @@ if (process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
 
 // 2️⃣ Caso contrário, tenta arquivo secreto ou local
 if (!initialized) {
-  const serviceAccountPath =
-    process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "/etc/secrets/firebaseServiceAccount.json";
+  const serviceAccountPath = "/etc/secrets/firebaseServiceAccount.json";
 
   if (fs.existsSync(serviceAccountPath)) {
     const serviceAccount = require(serviceAccountPath);
