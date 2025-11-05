@@ -37,8 +37,7 @@ const WHITELIST = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Se origin === undefined (ex.: server-to-server), permite
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // Permite requisições internas (ex: server-to-server)
     if (WHITELIST.indexOf(origin) !== -1) {
       return callback(null, true);
     } else {
@@ -49,6 +48,8 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true,
 };
+
+app.use(cors(corsOptions)); // Habilitar CORS para o backend
 
 
 app.use(cors(corsOptions)); // Habilitar CORS para o backend
