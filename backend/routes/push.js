@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const admin = require("../configs/firebaseAdmin"); // certifica-se que exporta admin
-const prisma = require("../configs/prisma"); // prisma client
+const { prisma } = require("../configs/prisma");
 // Nota: prisma.push_token é o model no seu schema (conforme você informou)
 
 async function verifyIdTokenFromHeader(req) {
@@ -42,10 +42,10 @@ router.post("/register", async (req, res) => {
 
     // Upsert token by unique token value
     const saved = await prisma.push_token.upsert({
-      where: { token },
-      update: { user_id: userId, platform, updated_at: new Date() },
-      create: { user_id: userId, token, platform },
-    });
+  where: { token },
+  update: { user_id: userId, platform, updated_at: new Date() },
+  create: { user_id: userId, token, platform },
+});
 
     console.log("Token salvo/upsert:", saved.token, "user:", saved.user_id);
     return res.json({ success: true, saved });
