@@ -1,6 +1,8 @@
+import admin from "firebase-admin";
 const { messaging } = require("./configs/firebaseAdmin");
 const env = require("dotenv");
 const path = require("path");
+const messaging = admin.messaging();
 const cron = require("node-cron");
 const app = require("./app");
 const cors = require("cors");
@@ -9,6 +11,7 @@ const { createAndSendEmail } = require("./configs/email");
 const { prisma } = require("./configs/prisma");
 const pushRoutes = require("./routes/push");  // Importa as rotas de push
 const { emailTemplateForReminder } = require("./email/emailTemplateForReminder");
+
 
 const sendSMS = require("./configs/twilio");
 const dayjs = require("dayjs");
@@ -27,32 +30,13 @@ env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || "192.168.18.71";
 
-// CORS dinâmico (whitelist)
-const WHITELIST = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "https://www.mentoraiforlife.com",
-  "https://mentoraiforlife.com",
-];
 
+// Configuração do CORS
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Se origin === undefined (ex.: server-to-server), permite
-    if (!origin) return callback(null, true);
-    if (WHITELIST.indexOf(origin) !== -1) {
-      return callback(null, true);
-    } else {
-      return callback(new Error("Not allowed by CORS"), false);
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: true,
+  origin: "http://localhost:3000", // Permitir requisições de localhost:3000
+  methods: ["GET", "POST", "PUT", "DELETE"], // Métodos permitidos
+  allowedHeaders: ["Content-Type", "Authorization"], // Cabeçalhos permitidos
 };
-
-// server.js (snippet)
-const notificationRoutes = require("./routes/notification.routes");
-app.use("/api/notifications", notificationRoutes);
 
 app.use(cors(corsOptions)); // Habilitar CORS para o backend
 
@@ -99,51 +83,6 @@ cron.schedule("*/1 * * * *", async () => {
       },
     }),
   ]);
-
-
-// trecho de server.js ou jobs/reminderJob.js
-const { sendPushToUser } = require("./controllers/client/notification/notification.controller");
-
-cron.schedule("*/5 * * * *", async () => {
-  // exemplo: pegar reminders a executar agora
-  const dueReminders = await prisma.reminder.findMany({
-    where: { is_sent: false, remind_at: { lte: new Date() } },
-    include: { user: { include: { profile: true } } },
-  });
-
-  for (const r of dueReminders) {
-    try {
-      const user = r.user;
-      // Check user preferences
-      if (user.push_notification) {
-        const payload = { title: "Lembrete", body: r.message, data: { reminderId: r.id } };
-        await sendPushToUser(user.id, payload);
-      }
-
-      if (user.is_notification) {
-        // email
-        await createAndSendEmail({
-          to: user.email,
-          subject: "Lembrete",
-          html: `<p>${r.message}</p>`,
-        });
-      }
-
-      // SMS: check profile.phone_number and some sms flag (we'll use push_notification as proxy or create separate)
-      const phone = user.profile?.phone_number;
-      if (phone) {
-        // Example: use sms_enabled if you add it; here we'll check push_notification as proxy
-        await sendSMS(phone, r.message);
-      }
-
-      // mark sent
-      await prisma.reminder.update({ where: { id: r.id }, data: { is_sent: true } });
-    } catch (err) {
-      console.error("Error sending reminder", r.id, err);
-      // do not mark as sent — will retry next cron
-    }
-  }
-});
 
   const sendNotifications = async (items, type) => {
     const promises = items.map(async (item) => {
@@ -202,51 +141,50 @@ cron.schedule("*/5 * * * *", async () => {
         }
 
         try {
-  // Buscar tokens do usuário
-  const tokens = await prisma.push_token.findMany({
-    where: { user_id: item.user.id },
-    select: { token: true },
-  });
+          // Buscar tokens do usuário
+          const tokens = await prisma.push_token.findMany({
+            where: { user_id: item.user.id },
+            select: { token: true },
+          });
 
-  const registrationTokens = tokens.map(t => t.token).filter(Boolean);
-  if (registrationTokens.length) {
-    const message = {
-      tokens: registrationTokens,
-      notification: {
-        title: `${title || "Reminder"}`,
-        body: `${description || item.message || "You have a reminder."}`,
-      },
-      data: {
-        type: type,
-        id: String(item.id),
-      },
-    };
 
-    // ✅ Novo método no SDK 13+
-    const { getMessaging } = require("firebase-admin/messaging");
-    const messagingClient = getMessaging();
+    // ✅ Novo método compatível com firebase-admin >= 13.0.0
+          const registrationTokens = tokens.map(t => t.token).filter(Boolean);
+          if (registrationTokens.length) {
+            const message = {
+              tokens: registrationTokens,
+              notification: {
+                title: `${title || "Reminder"}`,
+                body: `${description || item.message || "You have a reminder."}`,
+              },
+              data: {
+                type: type,
+                id: String(item.id),
+              },
+            };
 
-    const response = await messagingClient.sendEachForMulticast(message);
+            // Usando o sendMulticast para enviar a notificação para múltiplos tokens (Versão < 13.7.0)
+            const response = await messaging.sendMulticast(message);
 
-    console.log(`✅ FCM enviado: ${response.successCount} sucesso(s), ${response.failureCount} falha(s)`);
 
-    // Limpar tokens inválidos
-    if (response.failureCount > 0) {
-      const failedTokens = [];
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) failedTokens.push(registrationTokens[idx]);
-      });
-      if (failedTokens.length) {
-        await prisma.push_token.deleteMany({
-          where: { token: { in: failedTokens } },
-        });
-        console.warn(`🧹 Tokens inválidos removidos: ${failedTokens.length}`);
-      }
-    }
-  }
-} catch (err) {
-  console.error("FCM send error:", err);
-}
+            // Opcional: limpar tokens inválidos
+            if (response.failureCount > 0) {
+              const failedTokens = [];
+              response.responses.forEach((resp, idx) => {
+                if (!resp.success) {
+                  failedTokens.push(registrationTokens[idx]);
+                }
+              });
+              if (failedTokens.length) {
+                await prisma.push_token.deleteMany({
+                  where: { token: { in: failedTokens } },
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("FCM send error:", err);
+        }
 
         await prisma[type].update({
           where: { id: item.id },
