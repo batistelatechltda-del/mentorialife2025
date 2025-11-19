@@ -10,7 +10,7 @@ const { prisma } = require("./configs/prisma");
 const pushRoutes = require("./routes/push");  // Importa as rotas de push
 const { emailTemplateForReminder } = require("./email/emailTemplateForReminder");
 
-const sendSMS = require("./configs/twilio");
+const { sendSMS } = require("./configs/twilio");  // Certifique-se de que o caminho está correto
 const dayjs = require("dayjs");
 const { pusher } = require("./configs/pusher");
 
