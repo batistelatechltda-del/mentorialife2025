@@ -4,6 +4,8 @@ const openai = require("../../../configs/openAi");
 const { jsonrepair } = require("jsonrepair");
 const dayjs = require("dayjs");
 const chrono = require("chrono-node");
+const { sendSMS } = require("../../../configs/twilio");  // Corrigir a importação
+const { pusher } = require("../../../configs/pusher");
 
 async function create(req, res, next) {
   try {
@@ -562,13 +564,33 @@ if (!rawContent.trim().startsWith("{")) {
       }
     }
 
-    await prisma.chat_message.create({
-      data: {
-        conversation_id: conversationId,
-        sender: "BOT",
-        message: data.reply,
-      },
-    });
+    // Salva a mensagem do bot no banco
+const botMessage = await prisma.chat_message.create({
+  data: {
+    conversation_id: conversationId,
+    sender: "BOT",
+    message: data.reply,
+  },
+});
+
+// ENVIAR VIA PUSH / REALTIME
+await pusher.trigger(`user-${userId}`, "notification", {
+  id: botMessage.id,
+  message: botMessage.message,
+  sender: botMessage.sender,
+  timestamp: botMessage.created_at,
+});
+
+// 🔥 ENVIAR VIA SMS TAMBÉM
+const user = await prisma.user.findUnique({
+  where: { id: userId },
+  include: { profile: true },
+});
+
+if (user?.profile?.phone_number) {
+  await sendSMS(user.profile.phone_number, data.reply);
+}
+
 
     if (data.goal) {
       const goal = await prisma.goal.create({
