@@ -25,7 +25,7 @@ const envFile =
 
 env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
-const HOST = process.env.HOST || "0.0.0.0";
+const HOST = process.env.HOST || "192.168.18.71";
 
 // CORS dinâmico (whitelist)
 const WHITELIST = [
@@ -37,7 +37,8 @@ const WHITELIST = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // Permite requisições internas (ex: server-to-server)
+    // Se origin === undefined (ex.: server-to-server), permite
+    if (!origin) return callback(null, true);
     if (WHITELIST.indexOf(origin) !== -1) {
       return callback(null, true);
     } else {
@@ -49,8 +50,9 @@ const corsOptions = {
   credentials: true,
 };
 
-app.use(cors(corsOptions)); // Habilitar CORS para o backend
-
+// server.js (snippet)
+const notificationRoutes = require("./routes/notification.routes");
+app.use("/api/notifications", notificationRoutes);
 
 app.use(cors(corsOptions)); // Habilitar CORS para o backend
 
@@ -97,6 +99,51 @@ cron.schedule("*/1 * * * *", async () => {
       },
     }),
   ]);
+
+
+// trecho de server.js ou jobs/reminderJob.js
+const { sendPushToUser } = require("./controllers/client/notification/notification.controller");
+
+cron.schedule("*/5 * * * *", async () => {
+  // exemplo: pegar reminders a executar agora
+  const dueReminders = await prisma.reminder.findMany({
+    where: { is_sent: false, remind_at: { lte: new Date() } },
+    include: { user: { include: { profile: true } } },
+  });
+
+  for (const r of dueReminders) {
+    try {
+      const user = r.user;
+      // Check user preferences
+      if (user.push_notification) {
+        const payload = { title: "Lembrete", body: r.message, data: { reminderId: r.id } };
+        await sendPushToUser(user.id, payload);
+      }
+
+      if (user.is_notification) {
+        // email
+        await createAndSendEmail({
+          to: user.email,
+          subject: "Lembrete",
+          html: `<p>${r.message}</p>`,
+        });
+      }
+
+      // SMS: check profile.phone_number and some sms flag (we'll use push_notification as proxy or create separate)
+      const phone = user.profile?.phone_number;
+      if (phone) {
+        // Example: use sms_enabled if you add it; here we'll check push_notification as proxy
+        await sendSMS(phone, r.message);
+      }
+
+      // mark sent
+      await prisma.reminder.update({ where: { id: r.id }, data: { is_sent: true } });
+    } catch (err) {
+      console.error("Error sending reminder", r.id, err);
+      // do not mark as sent — will retry next cron
+    }
+  }
+});
 
   const sendNotifications = async (items, type) => {
     const promises = items.map(async (item) => {
