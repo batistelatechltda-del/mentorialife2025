@@ -21,6 +21,7 @@ model user {
   updated_at        DateTime           @updatedAt
   is_notification   Boolean            @default(false)
   push_notification Boolean            @default(false)
+  sms_notification  Boolean             @default(false)
   last_wakeup_email DateTime?
   authentication    authentication?
   calendarEvents    calendar_event[]
