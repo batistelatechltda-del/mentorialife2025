@@ -6,9 +6,7 @@ const verifyEmail = async (email) => {
   try {
     const response = await fetch(`https://api.mails.so/v1/validate?email=${email}`, {
       method: 'GET',
-      headers: {
-        'x-mails-api-key': apiKey
-      }
+      headers: { 'x-mails-api-key': apiKey }
     });
 
     if (!response.ok) {
@@ -17,11 +15,7 @@ const verifyEmail = async (email) => {
 
     const result = await response.json();
 
-    if (result.data.result === 'deliverable' && result.data.is_disposable === false) {
-      return true;
-    } else {
-      return false;
-    }
+    return result.data.result === 'deliverable' && result.data.is_disposable === false;
 
   } catch (error) {
     return false;
@@ -30,22 +24,19 @@ const verifyEmail = async (email) => {
 
 const createAndSendEmail = async (opts) => {
   try {
-    // Criando o transporte SMTP
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_SERVER_HOST,
-      port: process.env.EMAIL_SERVER_PORT,
-      secure: true, // Certifique-se de que esta opção está correta para o seu servidor
+      port: Number(process.env.EMAIL_SERVER_PORT),
+      secure: false, // CORRIGIDO → SendGrid exige false na porta 587
       auth: {
-        user: process.env.SENDER_USERNAME,
-        pass: process.env.SENDER_EMAIL_PASSWORD,
+        user: process.env.SENDER_USERNAME, // deve ser "apikey"
+        pass: process.env.SENDER_EMAIL_PASSWORD, // sua SENDGRID_API_KEY
       },
     });
 
-    // Verificando se a conexão com o servidor SMTP foi estabelecida com sucesso
     await transporter.verify();
     console.log("SMTP server verified successfully!");
 
-    // Definindo os parâmetros do e-mail
     const mailOpts = {
       from: process.env.SENDER_EMAIL_HERE,
       to: opts.to,
@@ -53,13 +44,12 @@ const createAndSendEmail = async (opts) => {
       html: opts.html,
     };
 
-    // Enviando o e-mail
-    return transporter.sendMail(mailOpts, (error, info) => {
-      if (error) {
-        return { error, response: null };
-      }
-      return { error: null, response: `Message sent: ${info.messageId} ${info.response}` };
-    });
+    const info = await transporter.sendMail(mailOpts);
+
+    return {
+      error: null,
+      response: `Message sent: ${info.messageId} ${info.response}`,
+    };
 
   } catch (error) {
     console.error("SMTP Error:", error);
@@ -68,4 +58,3 @@ const createAndSendEmail = async (opts) => {
 };
 
 module.exports = { createAndSendEmail, verifyEmail };
-
