@@ -25,7 +25,7 @@ const envFile =
 
 env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
-const HOST = process.env.HOST || "192.168.18.71";
+const HOST = process.env.HOST || "0.0.0.0";
 
 // CORS dinâmico (whitelist)
 const WHITELIST = [
