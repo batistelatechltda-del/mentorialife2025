@@ -4,7 +4,7 @@ const openai = require("../../../configs/openAi");
 const { jsonrepair } = require("jsonrepair");
 const dayjs = require("dayjs");
 const chrono = require("chrono-node");
-const { sendSMS } = require("../../../configs/twilio");  // Corrigir a importação
+const { sendSMS } = require("../../../configs/twilio"); 
 const { pusher } = require("../../../configs/pusher");
 
 async function create(req, res, next) {
