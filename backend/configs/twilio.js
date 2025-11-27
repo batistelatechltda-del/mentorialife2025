@@ -15,8 +15,8 @@ async function sendSMS(to, body) {
 
     if (process.env.TWILIO_SERVICE_SID) {
       params.messagingServiceSid = process.env.TWILIO_SERVICE_SID;
-    } else if (process.env.TWILIO_PHONE) {
-      params.from = process.env.TWILIO_PHONE;
+    } else if (process.env.TWILIO_PHONE_NUMBER) {
+      params.from = process.env.TWILIO_PHONE_NUMBER;
     }
 
     const msg = await client.messages.create(params);
