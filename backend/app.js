@@ -3,8 +3,9 @@ const app = express();
 const cors = require("cors");
 const { reqLogger } = require("./configs/logger");
 const errorHandler = require("./middlewares/errorHandler.middleware");
-const { sendSMS } = require('./configs/twilio');  // Importando a função para enviar SMS
-const { prisma } = require('./configs/prisma');  // Importando o prisma para interação com o banco de dados
+const { sendSMS } = require('./configs/twilio');  
+app.use("/twilio", require("./routes/twilio.routes")); 
+const { prisma } = require('./configs/prisma');  
 
 // Configurações do servidor
 app.use(
@@ -32,53 +33,47 @@ app.use(
 
 app.use(reqLogger);
 
-// Rota para enviar mensagens no chat e via SMS
 app.post('/send-message', async (req, res) => {
-    const { message, to, from } = req.body;
-    
-    try {
-        // Enviar mensagem no chat
-        // Verificar se já existe uma conversa ou criar uma nova
-        let conversation = await prisma.conversation.findFirst({
-            where: {
-                user: {
-                    profile: {
-                        phone_number: from, // Buscando pela chave de telefone do perfil
-                    }
-                }
-            }
-        });
+  const { message, to, from } = req.body;
 
-        // Se não houver conversa, cria uma nova
-        if (!conversation) {
-            conversation = await prisma.conversation.create({
-                data: {
-                    user_id: from, 
-                    title: `Chat com ${from}`,
-                    created_at: new Date(),
-                }
-            });
-        }
+  if (!message || !to || !from) {
+    return res.status(400).json({ success:false, message: 'Missing message, to or from' });
+  }
 
-        // Salvar a mensagem no banco de dados
-        await prisma.chat_message.create({
-            data: {
-                conversation_id: conversation.id,
-                message, // A mensagem que foi enviada
-                sender: "USER", // Marca como sendo do usuário
-                created_at: new Date(),
-            }
-        });
-
-        // Enviar mensagem via SMS
-        await sendSMS(to, message);
-
-        // Retornar resposta ao usuário
-        res.status(200).send({ success: true, message: 'Mensagem enviada com sucesso!' });
-    } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-        res.status(500).send({ success: false, message: 'Falha ao enviar a mensagem.' });
+  try {
+    // Encontrar profile pelo telefone 'from' (remetente do chat no seu sistema)
+    const profile = await prisma.profile.findFirst({ where: { phone_number: from }, include: { user: true } });
+    let userId;
+    if (profile?.user?.id) {
+      userId = profile.user.id;
+    } else {
+      // Se você quiser permitir envio para números que não são usuários do sistema, crie conversa temporária:
+      // criar ou buscar conversation por phone_number, ou retornar erro
+      return res.status(400).json({ success:false, message: 'Sender phone not linked to user' });
     }
+
+    let conversation = await prisma.conversation.findFirst({ where: { user_id: userId }});
+    if (!conversation) {
+      conversation = await prisma.conversation.create({ data: { user_id: userId, title: `Chat com ${from}` }});
+    }
+
+    // Salvar mensagem no chat (sender USER)
+    await prisma.chat_message.create({
+      data: {
+        conversation_id: conversation.id,
+        message,
+        sender: "USER",
+      }
+    });
+
+    // Enviar via Twilio (para 'to')
+    await sendSMS(to, message);
+
+    return res.status(200).json({ success: true, message: 'Mensagem enviada com sucesso!' });
+  } catch (err) {
+    console.error("Erro ao enviar mensagem:", err);
+    return res.status(500).json({ success:false, message: 'Falha ao enviar a mensagem.' });
+  }
 });
 
 // Rota para registrar mensagens SMS no chat
