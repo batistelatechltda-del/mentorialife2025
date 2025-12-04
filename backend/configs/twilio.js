@@ -9,22 +9,20 @@ const { prisma } = require("../configs/prisma");
 const { pusher } = require("../configs/pusher");
 const openai = require("../configs/openAi");
 
-// ===================== ENVIA SMS =====================
 async function sendSMS(to, body) {
   try {
     if (!to) throw new Error("Número 'to' não informado");
 
-    const params = { to, body };
-
-    if (process.env.TWILIO_SERVICE_SID) {
-      params.messagingServiceSid = process.env.TWILIO_SERVICE_SID;
-    } else if (process.env.TWILIO_PHONE_NUMBER) {
-      params.from = process.env.TWILIO_PHONE_NUMBER;
-    }
+    const params = {
+      from: "+13854027902",   // ✅ SEU NÚMERO FIXO
+      to,
+      body
+    };
 
     const msg = await client.messages.create(params);
     console.log(`📲 SMS enviado para ${to}: ${msg.sid}`);
     return msg;
+
   } catch (error) {
     console.error("❌ Erro ao enviar SMS:", error.message);
     throw error;
