@@ -34,27 +34,31 @@ app.use(
 app.use(reqLogger);
 
 app.post('/send-message', async (req, res) => {
-  const { message, to, from } = req.body;
+  const { message, userId } = req.body;
 
-  if (!message || !to || !from) {
-    return res.status(400).json({ success:false, message: 'Missing message, to or from' });
-  }
+  if (!message || !userId) {
+  return res.status(400).json({ 
+    success:false,
+    message: 'Missing message or userId'
+  });
+}
 
   try {
     // Encontrar profile pelo telefone 'from' (remetente do chat no seu sistema)
-    const profile = await prisma.profile.findFirst({ where: { phone_number: from }, include: { user: true } });
-    let userId;
-    if (profile?.user?.id) {
-      userId = profile.user.id;
-    } else {
-      // Se você quiser permitir envio para números que não são usuários do sistema, crie conversa temporária:
-      // criar ou buscar conversation por phone_number, ou retornar erro
-      return res.status(400).json({ success:false, message: 'Sender phone not linked to user' });
-    }
+   const user = await prisma.user.findUnique({
+  where: { id: userId },
+  include: { profile: true }
+});
+
+if(!user || !user.profile?.phone_number){
+  return res.status(400).json({ success:false, message: "Usuário sem telefone cadastrado" });
+}
+
+const to = user.profile.phone_number;
 
     let conversation = await prisma.conversation.findFirst({ where: { user_id: userId }});
     if (!conversation) {
-      conversation = await prisma.conversation.create({ data: { user_id: userId, title: `Chat com ${from}` }});
+      conversation = await prisma.conversation.create({ data: { user_id: userId, title: `Chat com ${user.profile.phone_number}` }});
     }
 
     // Salvar mensagem no chat (sender USER)
@@ -74,50 +78,6 @@ app.post('/send-message', async (req, res) => {
     console.error("Erro ao enviar mensagem:", err);
     return res.status(500).json({ success:false, message: 'Falha ao enviar a mensagem.' });
   }
-});
-
-// Rota para registrar mensagens SMS no chat
-app.post('/receive-sms', async (req, res) => {
-    const { from, body } = req.body;
-
-    try {
-        // Buscar ou criar a conversa do usuário
-        let conversation = await prisma.conversation.findFirst({
-            where: {
-                user: {
-                    profile: {
-                        phone_number: from, // Enviar para o número associado ao 'from'
-                    }
-                }
-            }
-        });
-
-        // Se não houver conversa, cria uma nova
-        if (!conversation) {
-            conversation = await prisma.conversation.create({
-                data: {
-                    user_id: from,
-                    title: `Chat com ${from}`,
-                    created_at: new Date(),
-                }
-            });
-        }
-
-        // Salvar a mensagem SMS no banco de dados do chat
-        await prisma.chat_message.create({
-            data: {
-                conversation_id: conversation.id,
-                message: body, // A mensagem SMS recebida
-                sender: "USER", // Indica que a mensagem é do usuário
-                created_at: new Date(),
-            }
-        });
-
-        res.status(200).send({ success: true, message: 'Mensagem recebida e registrada no chat.' });
-    } catch (error) {
-        console.error('Erro ao registrar mensagem SMS:', error);
-        res.status(500).send({ success: false, message: 'Falha ao registrar a mensagem SMS.' });
-    }
 });
 
 // Rotas adicionais da aplicação
