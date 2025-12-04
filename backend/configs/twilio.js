@@ -1,17 +1,20 @@
- // configs/twilio.js
-const twilio = require('twilio');
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-const { prisma } = require('../configs/prisma');
-const { pusher } = require('../configs/pusher');
+// configs/twilio.js
+const twilio = require("twilio");
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
-// Envia SMS (usa Messaging Service se configurado, caso contrário usa from)
+const { prisma } = require("../configs/prisma");
+const { pusher } = require("../configs/pusher");
+const openai = require("../configs/openAi");
+
+// ===================== ENVIA SMS =====================
 async function sendSMS(to, body) {
   try {
-    if (!to) throw new Error("No 'to' phone number provided");
-    const params = {
-      body,
-      to,
-    };
+    if (!to) throw new Error("Número 'to' não informado");
+
+    const params = { to, body };
 
     if (process.env.TWILIO_SERVICE_SID) {
       params.messagingServiceSid = process.env.TWILIO_SERVICE_SID;
@@ -23,40 +26,38 @@ async function sendSMS(to, body) {
     console.log(`📲 SMS enviado para ${to}: ${msg.sid}`);
     return msg;
   } catch (error) {
-    console.error(`❌ Falha ao enviar SMS para ${to}:`, error && error.message ? error.message : error);
+    console.error("❌ Erro ao enviar SMS:", error.message);
     throw error;
   }
-};
+}
 
-// Recebe SMS (webhook Twilio) — salva no chat, dispara pusher.
+// ===================== RECEBE SMS =====================
 async function receiveSMS(req, res) {
   const From = req.body.From;
   const Body = req.body.Body;
 
   if (!From || !Body) {
-    console.warn("Twilio webhook called without From/Body");
+    console.warn("SMS vazio recebido");
     return res.type("text/xml").send("<Response></Response>");
   }
 
   try {
-    // **Mapear telefone -> profile -> user**
-    // Normalizar números se necessário (ex: remover espaços)
     const normalized = String(From).trim();
 
+    // Buscar usuário pelo telefone
     const profile = await prisma.profile.findFirst({
       where: { phone_number: normalized },
       include: { user: true },
     });
 
     if (!profile || !profile.user) {
-      console.warn("SMS from unregistered phone:", normalized);
-      // opcional: criar um registro de conversa temporária ou enviar resposta
+      console.warn("Telefone não cadastrado:", normalized);
       return res.type("text/xml").send("<Response></Response>");
     }
 
     const userId = profile.user.id;
 
-    // Buscar (ou criar) conversa
+    // Buscar ou criar conversa
     let conversation = await prisma.conversation.findFirst({
       where: { user_id: userId },
     });
@@ -70,8 +71,8 @@ async function receiveSMS(req, res) {
       });
     }
 
-    // Criar mensagem
-    const msg = await prisma.chat_message.create({
+    // Salvar mensagem do usuário
+    const userMsg = await prisma.chat_message.create({
       data: {
         conversation_id: conversation.id,
         sender: "USER",
@@ -79,25 +80,53 @@ async function receiveSMS(req, res) {
       },
     });
 
-    // Notificar frontend via pusher
-    try {
-      await pusher.trigger(`user-${userId}`, "notification", {
-        id: msg.id,
-        sender: msg.sender,
-        message: msg.message,
-        timestamp: msg.created_at,
-      });
-    } catch (pErr) {
-      console.warn("Pusher trigger failed:", pErr && pErr.message ? pErr.message : pErr);
-    }
+    // Enviar pro frontend
+    await pusher.trigger(`user-${userId}`, "notification", {
+      id: userMsg.id,
+      sender: userMsg.sender,
+      message: userMsg.message,
+      timestamp: userMsg.created_at,
+    });
 
-    // Resposta vazia para Twilio
-    res.type("text/xml").send("<Response></Response>");
+    // ================= IA =================
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: "Você é um mentor de vida e produtividade." },
+        { role: "user", content: Body },
+      ],
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Salvar resposta do BOT
+    const botMsg = await prisma.chat_message.create({
+      data: {
+        conversation_id: conversation.id,
+        sender: "BOT",
+        message: reply,
+      },
+    });
+
+    // Enviar resposta por SMS
+    await sendSMS(normalized, reply);
+
+    // Enviar pro frontend
+    await pusher.trigger(`user-${userId}`, "notification", {
+      id: botMsg.id,
+      sender: "BOT",
+      message: reply,
+      timestamp: botMsg.created_at,
+    });
+
+    console.log("✅ SMS processado com sucesso");
+
+    return res.type("text/xml").send("<Response></Response>");
+
   } catch (err) {
-    console.error("Error in receiveSMS:", err);
-    res.status(500).type("text/xml").send("<Response></Response>");
+    console.error("❌ Erro no receiveSMS:", err.message);
+    return res.status(500).type("text/xml").send("<Response></Response>");
   }
-};
-
+}
 
 module.exports = { sendSMS, receiveSMS };
