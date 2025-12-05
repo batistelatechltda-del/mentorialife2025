@@ -200,7 +200,7 @@ async function receiveWhatsApp(req, res) {
 
     // Responder no WhatsApp
     await client.messages.create({
-      from: "whatsapp:+14155238886", // sandbox number
+      from: "whatsapp:+15557529153", // sandbox number
       to: From,
       body: reply,
     });
