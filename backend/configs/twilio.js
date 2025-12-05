@@ -126,5 +126,100 @@ async function receiveSMS(req, res) {
     return res.status(500).type("text/xml").send("<Response></Response>");
   }
 }
+async function receiveWhatsApp(req, res) {
+  const From = req.body.From; // whatsapp:+5511...
+  const Body = req.body.Body;
 
-module.exports = { sendSMS, receiveSMS };
+  if (!From || !Body) {
+    console.warn("WhatsApp vazio recebido");
+    return res.type("text/xml").send("<Response></Response>");
+  }
+
+  try {
+    const normalized = From
+  .replace("whatsapp:", "")
+  .replace("+", "")
+  .replace(/\D/g, "")
+  .trim();
+
+    // Buscar usuário pelo telefone
+    const profile = await prisma.profile.findFirst({
+  where: { phone_number: { contains: normalized } },
+  include: { user: true },
+});
+
+    if (!profile || !profile.user) {
+      console.warn("WhatsApp não cadastrado:", normalized);
+      return res.type("text/xml").send("<Response></Response>");
+    }
+
+    const userId = profile.user.id;
+
+    // Buscar ou criar conversa
+    let conversation = await prisma.conversation.findFirst({
+      where: { user_id: userId },
+    });
+
+    if (!conversation) {
+      conversation = await prisma.conversation.create({
+        data: {
+          user_id: userId,
+          title: `WhatsApp ${normalized}`,
+        },
+      });
+    }
+
+    // Salvar mensagem do usuário
+    const userMsg = await prisma.chat_message.create({
+      data: {
+        conversation_id: conversation.id,
+        sender: "USER",
+        message: Body,
+      },
+    });
+
+    // IA
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: "Você é um mentor de vida e produtividade." },
+        { role: "user", content: Body },
+      ],
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Salvar resposta do bot
+    const botMsg = await prisma.chat_message.create({
+      data: {
+        conversation_id: conversation.id,
+        sender: "BOT",
+        message: reply,
+      },
+    });
+
+    // Responder no WhatsApp
+    await client.messages.create({
+      from: "whatsapp:+14155238886", // sandbox number
+      to: From,
+      body: reply,
+    });
+
+    // Enviar ao frontend
+    await pusher.trigger(`user-${userId}`, "notification", {
+      id: botMsg.id,
+      sender: "BOT",
+      message: reply,
+      timestamp: botMsg.created_at,
+    });
+
+    console.log("✅ WhatsApp processado com sucesso");
+
+    return res.type("text/xml").send("<Response></Response>");
+  } catch (err) {
+    console.error("❌ Erro no receiveWhatsApp:", err.message);
+    return res.status(500).type("text/xml").send("<Response></Response>");
+  }
+}
+
+module.exports = { sendSMS, receiveSMS, receiveWhatsApp };
