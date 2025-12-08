@@ -9,22 +9,58 @@ const { prisma } = require("../configs/prisma");
 const { pusher } = require("../configs/pusher");
 const openai = require("../configs/openAi");
 
+// ===================== NORMALIZA NÚMERO =====================
+function normalizePhone(phone) {
+  if (!phone) return null;
+
+  return phone
+    .replace("whatsapp:", "")
+    .replace("+", "")
+    .replace(/\D/g, "")
+    .trim();
+}
+
+// ===================== SEND SMS =====================
 async function sendSMS(to, body) {
   try {
     if (!to) throw new Error("Número 'to' não informado");
 
-    const params = {
-      from: "+13854027902",  
-      to,
-      body
-    };
+    const number = to.startsWith("+") ? to : `+${to}`;
 
-    const msg = await client.messages.create(params);
-    console.log(`📲 SMS enviado para ${to}: ${msg.sid}`);
+    const msg = await client.messages.create({
+      from: "+13854027902",
+      to: number,
+      body,
+    });
+
+    console.log(`📲 SMS enviado para ${number}: ${msg.sid}`);
     return msg;
 
   } catch (error) {
     console.error("❌ Erro ao enviar SMS:", error.message);
+    throw error;
+  }
+}
+
+// ===================== SEND WHATSAPP =====================
+async function sendWhatsApp(to, body) {
+  try {
+    if (!to) throw new Error("Número 'to' não informado");
+
+    const number = normalizePhone(to);
+    const formatted = `whatsapp:+${number}`;
+
+    const msg = await client.messages.create({
+      from: "whatsapp:+13854027902",
+      to: formatted,
+      body,
+    });
+
+    console.log(`✅ WhatsApp enviado para ${formatted}: ${msg.sid}`);
+    return msg;
+
+  } catch (error) {
+    console.error("❌ Erro ao enviar WhatsApp:", error.message);
     throw error;
   }
 }
@@ -35,27 +71,34 @@ async function receiveSMS(req, res) {
   const Body = req.body.Body;
 
   if (!From || !Body) {
-    console.warn("SMS vazio recebido");
+    console.warn("⚠️ SMS vazio recebido");
     return res.type("text/xml").send("<Response></Response>");
   }
 
   try {
-    const normalized = String(From).trim();
+    const normalized = normalizePhone(From);
 
-    // Buscar usuário pelo telefone
     const profile = await prisma.profile.findFirst({
-      where: { phone_number: normalized },
+      where: {
+        phone_number: {
+          in: [
+            normalized,
+            normalized.slice(-11),
+            "+55" + normalized.slice(-11),
+            "+" + normalized,
+          ],
+        },
+      },
       include: { user: true },
     });
 
     if (!profile || !profile.user) {
-      console.warn("Telefone não cadastrado:", normalized);
+      console.warn("🚫 Número SMS não cadastrado:", normalized);
       return res.type("text/xml").send("<Response></Response>");
     }
 
     const userId = profile.user.id;
 
-    // Buscar ou criar conversa
     let conversation = await prisma.conversation.findFirst({
       where: { user_id: userId },
     });
@@ -64,12 +107,11 @@ async function receiveSMS(req, res) {
       conversation = await prisma.conversation.create({
         data: {
           user_id: userId,
-          title: `Chat com ${normalized}`,
+          title: `SMS ${normalized}`,
         },
       });
     }
 
-    // Salvar mensagem do usuário
     const userMsg = await prisma.chat_message.create({
       data: {
         conversation_id: conversation.id,
@@ -78,7 +120,6 @@ async function receiveSMS(req, res) {
       },
     });
 
-    // Enviar pro frontend
     await pusher.trigger(`user-${userId}`, "notification", {
       id: userMsg.id,
       sender: userMsg.sender,
@@ -86,7 +127,6 @@ async function receiveSMS(req, res) {
       timestamp: userMsg.created_at,
     });
 
-    // ================= IA =================
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [
@@ -97,7 +137,6 @@ async function receiveSMS(req, res) {
 
     const reply = completion.choices[0].message.content;
 
-    // Salvar resposta do BOT
     const botMsg = await prisma.chat_message.create({
       data: {
         conversation_id: conversation.id,
@@ -106,10 +145,8 @@ async function receiveSMS(req, res) {
       },
     });
 
-    // Enviar resposta por SMS
     await sendSMS(normalized, reply);
 
-    // Enviar pro frontend
     await pusher.trigger(`user-${userId}`, "notification", {
       id: botMsg.id,
       sender: "BOT",
@@ -118,7 +155,6 @@ async function receiveSMS(req, res) {
     });
 
     console.log("✅ SMS processado com sucesso");
-
     return res.type("text/xml").send("<Response></Response>");
 
   } catch (err) {
@@ -126,36 +162,44 @@ async function receiveSMS(req, res) {
     return res.status(500).type("text/xml").send("<Response></Response>");
   }
 }
+
+// ===================== RECEBE WHATSAPP =====================
 async function receiveWhatsApp(req, res) {
   const From = req.body.From; // whatsapp:+5511...
   const Body = req.body.Body;
 
   if (!From || !Body) {
-    console.warn("WhatsApp vazio recebido");
+    console.warn("⚠️ WhatsApp vazio recebido");
     return res.type("text/xml").send("<Response></Response>");
   }
 
   try {
-    const normalized = From
-  .replace("whatsapp:", "")
-  .replace("+", "")
-  .replace(/\D/g, "")
-  .trim();
+    const normalized = normalizePhone(From);
 
-    // Buscar usuário pelo telefone
+    console.log("📥 WhatsApp recebido de:", From);
+    console.log("📨 Mensagem:", Body);
+
     const profile = await prisma.profile.findFirst({
-  where: { phone_number: { contains: normalized } },
-  include: { user: true },
-});
+      where: {
+        phone_number: {
+          in: [
+            normalized,
+            normalized.slice(-11),
+            "+55" + normalized.slice(-11),
+            "+" + normalized,
+          ],
+        },
+      },
+      include: { user: true },
+    });
 
     if (!profile || !profile.user) {
-      console.warn("WhatsApp não cadastrado:", normalized);
+      console.warn("🚫 WhatsApp não cadastrado:", normalized);
       return res.type("text/xml").send("<Response></Response>");
     }
 
     const userId = profile.user.id;
 
-    // Buscar ou criar conversa
     let conversation = await prisma.conversation.findFirst({
       where: { user_id: userId },
     });
@@ -169,7 +213,6 @@ async function receiveWhatsApp(req, res) {
       });
     }
 
-    // Salvar mensagem do usuário
     const userMsg = await prisma.chat_message.create({
       data: {
         conversation_id: conversation.id,
@@ -178,7 +221,6 @@ async function receiveWhatsApp(req, res) {
       },
     });
 
-    // IA
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [
@@ -189,7 +231,6 @@ async function receiveWhatsApp(req, res) {
 
     const reply = completion.choices[0].message.content;
 
-    // Salvar resposta do bot
     const botMsg = await prisma.chat_message.create({
       data: {
         conversation_id: conversation.id,
@@ -198,14 +239,11 @@ async function receiveWhatsApp(req, res) {
       },
     });
 
-    // Responder no WhatsApp
-    await client.messages.create({
-   from: "whatsapp:+13854027902",
-   to: From,
-   body: reply,
-});
+    console.log("📤 Enviando resposta para:", normalized);
+    console.log("📑 Resposta:", reply);
 
-    // Enviar ao frontend
+    await sendWhatsApp(normalized, reply);
+
     await pusher.trigger(`user-${userId}`, "notification", {
       id: botMsg.id,
       sender: "BOT",
@@ -216,10 +254,16 @@ async function receiveWhatsApp(req, res) {
     console.log("✅ WhatsApp processado com sucesso");
 
     return res.type("text/xml").send("<Response></Response>");
+
   } catch (err) {
     console.error("❌ Erro no receiveWhatsApp:", err.message);
     return res.status(500).type("text/xml").send("<Response></Response>");
   }
 }
 
-module.exports = { sendSMS, receiveSMS, receiveWhatsApp };
+module.exports = {
+  sendSMS,
+  sendWhatsApp,
+  receiveSMS,
+  receiveWhatsApp,
+};
