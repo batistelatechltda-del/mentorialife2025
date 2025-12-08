@@ -4,7 +4,7 @@ const openai = require("../../../configs/openAi");
 const { jsonrepair } = require("jsonrepair");
 const dayjs = require("dayjs");
 const chrono = require("chrono-node");
-const { sendSMS } = require("../../../configs/twilio"); 
+const { sendSMS, sendWhatsApp } = require("../../../configs/twilio");
 const { pusher } = require("../../../configs/pusher");
 
 async function create(req, res, next) {
@@ -587,10 +587,19 @@ const user = await prisma.user.findUnique({
   include: { profile: true },
 });
 
-if (user?.profile?.phone_number) {
-  await sendSMS(user.profile.phone_number, data.reply);
-}
+const phone = user.profile.phone_number;
 
+if (phone) {
+  try {
+    if (phone.startsWith("+")) {
+      await sendWhatsApp(phone, data.reply);
+    } else {
+      await sendSMS(phone, data.reply);
+    }
+  } catch (e) {
+    console.error("Falha ao enviar mensagem:", e.message || e);
+  }
+}
 
     if (data.goal) {
       const goal = await prisma.goal.create({
