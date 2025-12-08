@@ -43,27 +43,28 @@ async function sendSMS(to, body) {
 }
 
 // ===================== SEND WHATSAPP =====================
-async function sendWhatsApp(to, body) {
+const sendWhatsApp = async (to, body) => {
   try {
-    if (!to) throw new Error("Número 'to' não informado");
+    if (!to) throw new Error("Número WhatsApp não informado");
 
-    const number = normalizePhone(to);
-    const formatted = `whatsapp:+${number}`;
+    // Remove sujeira e normaliza
+    const number = to.replace(/\D/g, '');
 
-    const msg = await client.messages.create({
-      from: "whatsapp:+13854027902",
-      to: formatted,
-      body,
-    });
+    const params = {
+      from: "whatsapp:+13854027902", // ✅ SEU WHATSAPP
+      to: `whatsapp:+${number}`,     // ✅ FORMATO OBRIGATÓRIO
+      body
+    };
 
-    console.log(`✅ WhatsApp enviado para ${formatted}: ${msg.sid}`);
+    const msg = await client.messages.create(params);
+    console.log(`✅ WHATSAPP enviado para ${params.to}: ${msg.sid}`);
     return msg;
 
   } catch (error) {
     console.error("❌ Erro ao enviar WhatsApp:", error.message);
     throw error;
   }
-}
+};
 
 // ===================== RECEBE SMS =====================
 async function receiveSMS(req, res) {
