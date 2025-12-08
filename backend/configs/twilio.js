@@ -14,7 +14,7 @@ async function sendSMS(to, body) {
     if (!to) throw new Error("Número 'to' não informado");
 
     const params = {
-      from: "+13854027902",   // ✅ SEU NÚMERO FIXO
+      from: "+13854027902",  
       to,
       body
     };
@@ -200,10 +200,10 @@ async function receiveWhatsApp(req, res) {
 
     // Responder no WhatsApp
     await client.messages.create({
-      from: "whatsapp:+15557529153", // sandbox number
-      to: From,
-      body: reply,
-    });
+   from: "whatsapp:+13854027902",
+   to: From,
+   body: reply,
+});
 
     // Enviar ao frontend
     await pusher.trigger(`user-${userId}`, "notification", {
