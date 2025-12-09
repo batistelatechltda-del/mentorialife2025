@@ -1,16 +1,13 @@
-// ===================== TWILIO CONFIG =====================
+// configs/twilio.js
 const twilio = require("twilio");
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
 );
 
-// ===================== IMPORTAÇÕES =====================
 const { prisma } = require("../configs/prisma");
 const { pusher } = require("../configs/pusher");
-
-// Importa o CÉREBRO completo do sistema
-const { create: processMessage } = require("../controllers/client/messages/messages.controller");
+const openai = require("../configs/openAi");
 
 // ===================== NORMALIZA NÚMERO =====================
 function normalizePhone(phone) {
@@ -46,31 +43,30 @@ async function sendSMS(to, body) {
 }
 
 // ===================== SEND WHATSAPP =====================
-async function sendWhatsApp(to, body) {
+const sendWhatsApp = async (to, body) => {
   try {
     if (!to) throw new Error("Número WhatsApp não informado");
 
-    const number = to.replace(/\D/g, "");
+    // Remove sujeira e normaliza
+    const number = to.replace(/\D/g, '');
 
     const params = {
-      from: "whatsapp:+13854027902",
-      to: `whatsapp:+${number}`,
-      body,
+      from: "whatsapp:+13854027902", // ✅ SEU WHATSAPP
+      to: `whatsapp:+${number}`,     // ✅ FORMATO OBRIGATÓRIO
+      body
     };
 
     const msg = await client.messages.create(params);
-    console.log(`📤 WhatsApp enviado → ${params.to}: ${msg.sid}`);
+    console.log(`✅ WHATSAPP enviado para ${params.to}: ${msg.sid}`);
     return msg;
 
   } catch (error) {
     console.error("❌ Erro ao enviar WhatsApp:", error.message);
     throw error;
   }
-}
+};
 
-// =============================================================
-//                    FLUXO DE ENTRADA SMS
-// =============================================================
+// ===================== RECEBE SMS =====================
 async function receiveSMS(req, res) {
   const From = req.body.From;
   const Body = req.body.Body;
@@ -83,9 +79,6 @@ async function receiveSMS(req, res) {
   try {
     const normalized = normalizePhone(From);
 
-    console.log("📥 SMS recebido de:", normalized);
-
-    // Procura usuário
     const profile = await prisma.profile.findFirst({
       where: {
         phone_number: {
@@ -107,7 +100,6 @@ async function receiveSMS(req, res) {
 
     const userId = profile.user.id;
 
-    // Garante conversa
     let conversation = await prisma.conversation.findFirst({
       where: { user_id: userId },
     });
@@ -121,8 +113,7 @@ async function receiveSMS(req, res) {
       });
     }
 
-    // Registrar mensagem do usuário
-    const msg = await prisma.chat_message.create({
+    const userMsg = await prisma.chat_message.create({
       data: {
         conversation_id: conversation.id,
         sender: "USER",
@@ -130,41 +121,52 @@ async function receiveSMS(req, res) {
       },
     });
 
-    await pusher.trigger(`user-${userId}`, "notification", msg);
+    await pusher.trigger(`user-${userId}`, "notification", {
+      id: userMsg.id,
+      sender: userMsg.sender,
+      message: userMsg.message,
+      timestamp: userMsg.created_at,
+    });
 
-    // ======= 🔥 PASSA PARA O MESSAGESCONTROLLER ==========
-    const fakeReq = {
-      body: { message: Body },
-      user: { userId },
-    };
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: "Você é um mentor de vida e produtividade." },
+        { role: "user", content: Body },
+      ],
+    });
 
-    const fakeRes = {
-      status: () => ({
-        json: (data) => data,
-      }),
-    };
+    const reply = completion.choices[0].message.content;
 
-    const result = await processMessage(fakeReq, fakeRes);
+    const botMsg = await prisma.chat_message.create({
+      data: {
+        conversation_id: conversation.id,
+        sender: "BOT",
+        message: reply,
+      },
+    });
 
-    // Envia resposta via SMS
-    if (result?.reply) {
-      await sendSMS(normalized, result.reply);
-    }
+    await sendSMS(normalized, reply);
 
-    console.log("✅ SMS processado via messagesController");
+    await pusher.trigger(`user-${userId}`, "notification", {
+      id: botMsg.id,
+      sender: "BOT",
+      message: reply,
+      timestamp: botMsg.created_at,
+    });
+
+    console.log("✅ SMS processado com sucesso");
     return res.type("text/xml").send("<Response></Response>");
 
   } catch (err) {
-    console.error("❌ Erro no receiveSMS:", err);
+    console.error("❌ Erro no receiveSMS:", err.message);
     return res.status(500).type("text/xml").send("<Response></Response>");
   }
 }
 
-// =============================================================
-//                 FLUXO DE ENTRADA WHATSAPP
-// =============================================================
+// ===================== RECEBE WHATSAPP =====================
 async function receiveWhatsApp(req, res) {
-  const From = req.body.From; // whatsapp:+55119....
+  const From = req.body.From; // whatsapp:+5511...
   const Body = req.body.Body;
 
   if (!From || !Body) {
@@ -176,9 +178,8 @@ async function receiveWhatsApp(req, res) {
     const normalized = normalizePhone(From);
 
     console.log("📥 WhatsApp recebido de:", From);
-    console.log("📨 Conteúdo:", Body);
+    console.log("📨 Mensagem:", Body);
 
-    // Procura usuário
     const profile = await prisma.profile.findFirst({
       where: {
         phone_number: {
@@ -200,7 +201,6 @@ async function receiveWhatsApp(req, res) {
 
     const userId = profile.user.id;
 
-    // Garante conversa
     let conversation = await prisma.conversation.findFirst({
       where: { user_id: userId },
     });
@@ -214,8 +214,7 @@ async function receiveWhatsApp(req, res) {
       });
     }
 
-    // Registrar mensagem do usuário
-    const msg = await prisma.chat_message.create({
+    const userMsg = await prisma.chat_message.create({
       data: {
         conversation_id: conversation.id,
         sender: "USER",
@@ -223,37 +222,46 @@ async function receiveWhatsApp(req, res) {
       },
     });
 
-    await pusher.trigger(`user-${userId}`, "notification", msg);
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: "Você é um mentor de vida e produtividade." },
+        { role: "user", content: Body },
+      ],
+    });
 
-    // ======= 🔥 PASSA PARA O MESSAGESCONTROLLER ==========
-    const fakeReq = {
-      body: { message: Body },
-      user: { userId },
-    };
+    const reply = completion.choices[0].message.content;
 
-    const fakeRes = {
-      status: () => ({
-        json: (data) => data,
-      }),
-    };
+    const botMsg = await prisma.chat_message.create({
+      data: {
+        conversation_id: conversation.id,
+        sender: "BOT",
+        message: reply,
+      },
+    });
 
-    const result = await processMessage(fakeReq, fakeRes);
+    console.log("📤 Enviando resposta para:", normalized);
+    console.log("📑 Resposta:", reply);
 
-    // Envia resposta no WhatsApp
-    if (result?.reply) {
-      await sendWhatsApp(normalized, result.reply);
-    }
+    await sendWhatsApp(normalized, reply);
 
-    console.log("✅ WhatsApp processado via messagesController");
+    await pusher.trigger(`user-${userId}`, "notification", {
+      id: botMsg.id,
+      sender: "BOT",
+      message: reply,
+      timestamp: botMsg.created_at,
+    });
+
+    console.log("✅ WhatsApp processado com sucesso");
+
     return res.type("text/xml").send("<Response></Response>");
 
   } catch (err) {
-    console.error("❌ Erro no receiveWhatsApp:", err);
+    console.error("❌ Erro no receiveWhatsApp:", err.message);
     return res.status(500).type("text/xml").send("<Response></Response>");
   }
 }
 
-// =============================================================
 module.exports = {
   sendSMS,
   sendWhatsApp,
