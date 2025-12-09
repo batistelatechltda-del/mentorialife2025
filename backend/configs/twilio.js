@@ -10,7 +10,7 @@ const { prisma } = require("../configs/prisma");
 const { pusher } = require("../configs/pusher");
 
 // Importa o CÉREBRO completo do sistema
-const { create: processMessage } = require("../controllers/chat/messagesController");
+const { create: processMessage } = require("../controllers/client/messages/messages.controller");
 
 // ===================== NORMALIZA NÚMERO =====================
 function normalizePhone(phone) {
