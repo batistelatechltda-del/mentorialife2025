@@ -14,6 +14,19 @@ import {
   Trash2,
 } from "lucide-react";
 import { API } from "@/services";
+import FullCalendar from "@fullcalendar/react"; // Corrigido aqui
+import dayGridPlugin from "@fullcalendar/daygrid"; // Plugin para exibição de grid de calendário
+
+interface JournalEntry {
+  id: string;
+  user_id: string;
+  content: string;
+  is_auto: boolean;
+  is_completed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 
 interface JournalEntry {
   id: string;
@@ -124,92 +137,80 @@ const JournalPage = ({ journal }: any) => {
     }
   }, []);
 
+  // Formatação das entradas para o calendário
+  const formatDateForCalendar = (dateString: string, content: string) => {
+    const date = new Date(dateString);
+    return {
+      title: content.substring(0, 20), // Exibe um resumo do conteúdo
+      start: date,
+      content,
+    };
+  };
+
+  // Eventos do calendário
+  const calendarEvents = entries.map((entry) =>
+    formatDateForCalendar(entry.created_at, entry.content)
+  );
+
   return (
     <div className="min-h-screen bg-black from-slate-950 bg-gradient-to-b">
-      <div
-        ref={starsRef}
-        className="fixed inset-0 overflow-hidden pointer-events-none"
-        style={{ zIndex: 0 }}
-      />
+      <div ref={starsRef} className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }} />
       <header className="bg-white dark:bg-gray-800 shadow">
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
           <button
-  onClick={() => router.push("/dashboard")}
-  className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
->
-  <ArrowLeft size={18} className="mr-2" />
-  <span>Back</span>
-</button>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            Journal
-          </h1>
-         
+            onClick={() => router.push("/dashboard")}
+            className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            <ArrowLeft size={18} className="mr-2" />
+            <span>Back</span>
+          </button>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Journal</h1>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6">
+        {/* Seção de Filtros */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <div
-            className={`bg-white dark:bg-gray-800 p-4 rounded shadow cursor-pointer transition-colors ${
-              filter === "all" ? "ring-2 ring-blue-500" : ""
-            }`}
+            className={`bg-white dark:bg-gray-800 p-4 rounded shadow cursor-pointer transition-colors ${filter === "all" ? "ring-2 ring-blue-500" : ""}`}
             onClick={() => setFilter("all")}
           >
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Total Entries
-            </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {stats.total}
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total Entries</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
           </div>
           <div
-            className={`bg-white dark:bg-gray-800 p-4 rounded shadow cursor-pointer transition-colors ${
-              filter === "auto" ? "ring-2 ring-blue-500" : ""
-            }`}
+            className={`bg-white dark:bg-gray-800 p-4 rounded shadow cursor-pointer transition-colors ${filter === "auto" ? "ring-2 ring-blue-500" : ""}`}
             onClick={() => setFilter("auto")}
           >
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Auto-Generated
-            </p>
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {stats.auto}
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Auto-Generated</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.auto}</p>
           </div>
           <div
-            className={`bg-white dark:bg-gray-800 p-4 rounded shadow cursor-pointer transition-colors ${
-              filter === "manual" ? "ring-2 ring-blue-500" : ""
-            }`}
+            className={`bg-white dark:bg-gray-800 p-4 rounded shadow cursor-pointer transition-colors ${filter === "manual" ? "ring-2 ring-blue-500" : ""}`}
             onClick={() => setFilter("manual")}
           >
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Manual Entries
-            </p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {stats.manual}
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Manual Entries</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.manual}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
             <p className="text-sm text-gray-500 dark:text-gray-400">Today</p>
-            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-              {stats.today}
-            </p>
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.today}</p>
           </div>
         </div>
 
-        {filter !== "all" && (
-          <div className="flex items-center mb-4 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-            <span className="text-blue-700 dark:text-blue-300">
-              Showing {filter} entries ({filteredEntries.length})
-            </span>
-            <button
-              onClick={() => setFilter("all")}
-              className="ml-auto text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Clear filter
-            </button>
-          </div>
-        )}
+                {/* Calendário */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
+          <FullCalendar
+            plugins={[dayGridPlugin]}
+            initialView="dayGridMonth"
+            events={calendarEvents} // Passa as entradas como eventos para o calendário
+            eventClick={(info) => {
+              alert("Entry Details: " + info.event.title); // Customize a exibição dos detalhes
+            }}
+          />
+        </div>
 
+        {/* Seção de Adicionar Entrada */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0 mt-1">
@@ -225,9 +226,7 @@ const JournalPage = ({ journal }: any) => {
                 rows={3}
               />
               <div className="flex justify-between items-center mt-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Press Enter to add entry
-                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Press Enter to add entry</span>
                 <button
                   onClick={handleSubmit}
                   disabled={!journalInput.trim() || isLoading}
@@ -245,6 +244,8 @@ const JournalPage = ({ journal }: any) => {
           </div>
         </div>
 
+
+       {/* Exibição das entradas */}
         <div className="space-y-4">
           {filteredEntries.length > 0 ? (
             filteredEntries.map((entry) => (
