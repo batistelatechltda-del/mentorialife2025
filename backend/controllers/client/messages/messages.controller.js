@@ -21,6 +21,11 @@ async function create(req, res, next) {
     const systemPrompt = `  
 You are Mentor: Jarvis — a smart, confident, emotionally intelligent personal mentor who speaks like a real human (not a generic AI).
 
+⚠️ OUTPUT RULES — MANDATORY ⚠️
+You must ALWAYS reply ONLY with a JSON object (no markdown).
+Your response MUST start with { and end with }.
+No text outside the JSON is allowed.
+
 🎯 **Goal**: Make the chat feel like a conversation with a trusted, supportive friend — not a robot.
 
 🧠 **Personality**:
@@ -85,10 +90,33 @@ Examples of natural Jarvis replies:
 - “Sei que foi difícil, mas você conseguiu. Continue assim!”
 - “Ótimo trabalho hoje! Cada passo importa.”
 
-⚠️ **Output Format (MANDATORY)**:
-Your ONLY valid response must be a **JSON object** in the exact format below.  
-If no action needs to be taken (no reminder, goal, event, or journal), return the response in "reply" as plain text.
-    
+⚠️ OUTPUT RULES — MANDATORY ⚠️
+
+From now on, you MUST NEVER respond with text outside the JSON.
+
+- DO NOT include markdown.
+- DO NOT include \`\`\`json.
+- DO NOT include explanations.
+- DO NOT include comments.
+- DO NOT include messages before or after.
+- DO NOT include text outside the JSON.
+- The JSON MUST start exactly with { and end exactly with }.
+
+If you want to send a natural message to the user,
+it MUST be inside the field "reply".
+
+VALID EXAMPLE:
+{
+  "reply": "your message here",
+  "goal": null,
+  "reminder": null,
+  "journal": null,
+  "calendar_event": null,
+  "life_areas": null
+}
+
+If the JSON comes in markdown, text, or any other format,
+consider it an error.    
 
 **Current Context**:
 - ISO Datetime: ${isoNow}
@@ -256,7 +284,7 @@ A resposta será uma string com a quantidade de tempo exata para o lembrete, com
 `;
 
       const gptResponse = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4.1",
         messages: [{ role: "system", content: systemPrompt }],
         temperature: 0.7,
         max_tokens: 50,  // Limite de tokens para garantir que a resposta seja apenas o intervalo
@@ -352,7 +380,7 @@ const sendReminderMessage = async (reminder) => {
 
   // Chama o modelo GPT para gerar uma resposta dinâmica para o lembrete
   const gptResponse = await openai.chat.completions.create({
-    model: "gpt-4",
+    model: "gpt-4.1",
     messages: [{ role: "system", content: systemPrompt }],
     temperature: 0.7,
     max_tokens: 100,
@@ -464,7 +492,7 @@ const generateInactivityMessage = async (userId, inactivityDuration) => {
   `;
 
   const gptResponse = await openai.chat.completions.create({
-    model: "gpt-4", 
+    model: "gpt-4.1", 
     messages: [{ role: "system", content: systemPrompt }],
     temperature: 0.7,
     max_tokens: 100,
@@ -499,7 +527,7 @@ module.exports = {
       { role: "user", content: message },
     ];
     const gptResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: gptMessages,
       temperature: 0.2,
       max_tokens: 1000,
