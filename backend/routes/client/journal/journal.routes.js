@@ -32,7 +32,7 @@ router.post("/create", validateRequest(createJournalSchema), create);
 router.get("/get-all", getAll);
 // Novos recursos da FASE 4
 // 🔹 Alternar favorito
-router.patch("/:id/favorite", toggleFavorite);
+router.patch("/client/journal/:id/favorite", toggleFavorite)
 
 // 🔹 Estatísticas (total + sequência de dias seguidos)
 router.get("/stats/all", getStats);
