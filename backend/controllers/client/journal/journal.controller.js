@@ -118,31 +118,24 @@ async function remove(req, res) {
   }
 }
 
-/**
- * Alterna o estado de favorito
- */
 async function toggleFavorite(req, res) {
   try {
     const { id } = req.params;
-    const journal = await prisma.journal.update({
+    const { is_favorite } = req.body;
+
+    const updated = await prisma.journal.update({
       where: { id },
-      data: { favorite: { set: prisma.raw("NOT favorite") } },
+      data: { is_favorite },
     });
 
-    return res.status(200).json(
-      responses.updateSuccessResponse(journal, "Favorite toggled successfully.")
-    );
-  } catch (error) {
-    console.error("Toggle Favorite Error:", error);
-    return res
-      .status(500)
-      .json(responses.serverErrorResponse("Failed to toggle favorite."));
+    return res.json({ success: true, data: updated });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
 
-/**
- * Retorna estatísticas do diário: total e sequência de dias seguidos
- */
+
+
 async function getStats(req, res) {
   try {
     const { userId } = req.user;
@@ -153,7 +146,6 @@ async function getStats(req, res) {
 
     const total = journals.length;
 
-    // cálculo de streak (dias consecutivos)
     let streak = 0;
     let lastDate = null;
     journals.forEach((j) => {
