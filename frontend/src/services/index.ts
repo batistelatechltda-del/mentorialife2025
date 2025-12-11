@@ -59,6 +59,7 @@ interface CustomAxiosInstance {
   getProfile: () => Promise<any>;
   getUser: () => Promise<any>;
   getAllLifeArea: () => Promise<any>;
+  toggleFavoriteJournal: (id: string, data: any) => Promise<any>;
 }
 
 const axiosInstance = axios.create({
@@ -179,6 +180,12 @@ axiosInstance.updateReminder = (id: any, data: any) => {
 
 axiosInstance.updateEvent = (id: any, data: any) => {
   return axiosInstance.patch(`/client/calendar-event/update/${id}`, data);
+};
+axiosInstance.updateJournal = (id: any, data: any) => {
+  return axiosInstance.patch(`/client/journal/update/${id}`, data);
+};
+axiosInstance.toggleFavoriteJournal = (id: any, data: any) => {
+  return axiosInstance.patch(`/client/journal/${id}/favorite`, data);
 };
 axiosInstance.deleteGoal = (id: any) => {
   return axiosInstance.delete(`/client/goal/delete/${id}`);
