@@ -123,16 +123,22 @@ async function toggleFavorite(req, res) {
     const { id } = req.params;
     const { is_favorite } = req.body;
 
-    const updated = await prisma.journal.update({
+    const journal = await prisma.journal.update({
       where: { id },
-      data: { is_favorite },
+      data: { favorite: is_favorite },
     });
 
-    return res.json({ success: true, data: updated });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(200).json(
+      responses.updateSuccessResponse(journal, "Favorite updated successfully.")
+    );
+  } catch (error) {
+    console.error("Toggle Favorite Error:", error);
+    return res
+      .status(500)
+      .json(responses.serverErrorResponse("Failed to toggle favorite."));
   }
 }
+
 
 
 
