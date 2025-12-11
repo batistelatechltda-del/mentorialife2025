@@ -23,20 +23,11 @@ interface JournalEntry {
   content: string;
   is_auto: boolean;
   is_completed: boolean;
+  is_favorite: boolean;   // << NOVO
   created_at: string;
   updated_at: string;
 }
 
-
-interface JournalEntry {
-  id: string;
-  user_id: string;
-  content: string;
-  is_auto: boolean;
-  is_completed: boolean;
-  created_at: string;
-  updated_at: string;
-}
 
 const JournalPage = ({ journal }: any) => {
   const router = useRouter();
@@ -76,6 +67,20 @@ const JournalPage = ({ journal }: any) => {
     setEntries(entries.filter((entry) => entry.id !== entryId));
   };
 
+  const handleToggleFavorite = async (entry: JournalEntry) => {
+  const updated = { ...entry, is_favorite: !entry.is_favorite };
+
+  // Atualiza no backend
+  await API.toggleFavoriteJournal(entry.id, {
+    is_favorite: updated.is_favorite,
+  });
+
+  // Atualiza no frontend
+  setEntries(entries.map(e => (e.id === entry.id ? updated : e)));
+};
+
+  
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -100,7 +105,8 @@ const JournalPage = ({ journal }: any) => {
     return date.toDateString() === today.toDateString();
   };
 
-  const filteredEntries = entries.filter((entry) => {
+  const filteredEntries = entries
+  .filter((entry) => {
     switch (filter) {
       case "auto":
         return entry.is_auto;
@@ -109,6 +115,13 @@ const JournalPage = ({ journal }: any) => {
       default:
         return true;
     }
+  })
+  // Ordena favoritos no topo
+  .sort((a, b) => {
+    if (a.is_favorite === b.is_favorite) {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+    return a.is_favorite ? -1 : 1;
   });
 
   const stats = {
@@ -137,20 +150,23 @@ const JournalPage = ({ journal }: any) => {
     }
   }, []);
 
-  // Formatação das entradas para o calendário
-  const formatDateForCalendar = (dateString: string, content: string) => {
-    const date = new Date(dateString);
-    return {
-      title: content.substring(0, 20), // Exibe um resumo do conteúdo
-      start: date,
-      content,
-    };
-  };
+  const formatDateForCalendar = (dateString: string, content: string, isFavorite: boolean) => {
+  const date = new Date(dateString);
 
-  // Eventos do calendário
+  return {
+    title: content.substring(0, 40),
+    start: date.toISOString().split("T")[0],
+    allDay: true,
+    content,
+    backgroundColor: isFavorite ? "#facc15" : "#3b82f6", // amarelo ou azul
+    borderColor: isFavorite ? "#d97706" : "#2563eb",
+    textColor: "#000"
+  };
+};
+
   const calendarEvents = entries.map((entry) =>
-    formatDateForCalendar(entry.created_at, entry.content)
-  );
+  formatDateForCalendar(entry.created_at, entry.content, entry.is_favorite)
+);
 
   return (
     <div className="min-h-screen bg-black from-slate-950 bg-gradient-to-b">
@@ -250,9 +266,11 @@ const JournalPage = ({ journal }: any) => {
           {filteredEntries.length > 0 ? (
             filteredEntries.map((entry) => (
               <div
-                key={entry.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
-              >
+  key={entry.id}
+  className={`bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-md transition-shadow
+    ${entry.is_favorite ? "border-2 border-yellow-400 shadow-[0_0_10px_rgba(255,215,0,0.5)]" : "shadow"}
+  `}
+>
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3 flex-1">
                     <div
@@ -302,12 +320,27 @@ const JournalPage = ({ journal }: any) => {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDeleteEntry(entry.id)}
-                    className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors ml-2"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                 <div className="flex flex-col gap-2 ml-2">
+  {/* Botão de Favorito */}
+  <button
+  onClick={() => handleToggleFavorite(entry)}
+  className={`${
+    entry.is_favorite
+      ? "text-yellow-400"
+      : "text-gray-400 hover:text-yellow-500"
+  } transition-colors`}
+>
+  ★
+</button>
+
+  {/* Botão de deletar */}
+  <button
+    onClick={() => handleDeleteEntry(entry.id)}
+    className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+  >
+    <Trash2 size={16} />
+  </button>
+</div>
                 </div>
               </div>
             ))
