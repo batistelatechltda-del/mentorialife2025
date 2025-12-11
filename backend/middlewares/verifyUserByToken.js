@@ -4,10 +4,16 @@ const verifyUserByToken = (req, res, next) => {
   console.log("\n🧩 Middleware verifyUserByToken executado");
   console.log("📨 Authorization Header:", req.headers.authorization);
 
-  const { authorization: token } = req.headers;
+  let token = req.headers.authorization;
+
   if (!token) {
     console.log("❌ Nenhum token foi enviado");
     return res.status(400).json({ message: "Token not provided." });
+  }
+
+  // Remove "Bearer "
+  if (token.startsWith("Bearer ")) {
+    token = token.split(" ")[1];
   }
 
   const { tokenValid, decodedData } = verifyAndDecodeToken(token);
