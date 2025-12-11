@@ -32,14 +32,19 @@ async function getAll(req, res) {
     const { userId } = req.user
 
     const journals = await prisma.journal.findMany({
-      where: { user_id: userId },
-      orderBy: { created_at: "desc" },
-    });
+  where: { user_id: userId },
+  orderBy: { created_at: "desc" }
+});
 
-
-    return res.status(200).json(
-      responses.okResponse(journals, "Journals fetched successfully.")
-    );
+return res.status(200).json(
+  responses.okResponse(
+    journals.map(j => ({
+      ...j,
+      is_favorite: j.favorite,
+    })),
+    "Journals fetched successfully."
+  )
+);
   } catch (error) {
     console.error("Fetch Journals Error:", error);
     return res
@@ -124,13 +129,21 @@ async function toggleFavorite(req, res) {
     const { is_favorite } = req.body;
 
     const journal = await prisma.journal.update({
-      where: { id },
-      data: { favorite: is_favorite },
-    });
+  where: { id },
+  data: { favorite: is_favorite },
+});
 
-    return res.status(200).json(
-      responses.updateSuccessResponse(journal, "Favorite updated successfully.")
-    );
+
+  return res.status(200).json(
+  responses.updateSuccessResponse(
+    {
+      ...journal,
+      is_favorite: journal.favorite, 
+    },
+    "Favorite updated successfully."
+  )
+);
+
   } catch (error) {
     console.error("Toggle Favorite Error:", error);
     return res
