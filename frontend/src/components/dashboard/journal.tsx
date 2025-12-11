@@ -72,9 +72,8 @@ const JournalPage = ({ journal }: any) => {
 
   // Atualiza no backend
   await API.toggleFavoriteJournal(entry.id, {
-    is_favorite: updated.is_favorite,
-  });
-
+  is_favorite: updated.is_favorite
+});
   // Atualiza no frontend
   setEntries(entries.map(e => (e.id === entry.id ? updated : e)));
 };
