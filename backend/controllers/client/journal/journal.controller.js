@@ -1,19 +1,26 @@
+// controllers/client/journal/journal.controller.js
 const responses = require("../../../constants/responses");
 const { prisma } = require("../../../configs/prisma");
 const dayjs = require("dayjs");
 const openai = require("../../../configs/openAi");
 
-
 async function create(req, res) {
   try {
-    const { content, is_auto } = req.body;
-    const { userId } = req.user
+    const { content, is_auto, category, emoji, life_area_id } = req.body;
+    const { userId } = req.user;
+
     const journal = await prisma.journal.create({
       data: {
         user_id: userId,
         content,
         is_auto: is_auto ?? false,
+        category: category ?? null,
+        emoji: emoji ?? null,
+        life_area_id: life_area_id ?? null
       },
+      include: {
+        life_area: true
+      }
     });
 
     return res.status(201).json(
@@ -29,22 +36,28 @@ async function create(req, res) {
 
 async function getAll(req, res) {
   try {
-    const { userId } = req.user
+    const { userId } = req.user;
+    // Optional query to group by life area or filter by life_area_id
+    const { life_area_id } = req.query;
+
+    const where = { user_id: userId };
+    if (life_area_id) where.life_area_id = life_area_id;
 
     const journals = await prisma.journal.findMany({
-  where: { user_id: userId },
-  orderBy: { created_at: "desc" }
-});
+      where,
+      orderBy: { created_at: "desc" },
+      include: { life_area: true }
+    });
 
-return res.status(200).json(
-  responses.okResponse(
-    journals.map(j => ({
+    // Map to include is_favorite compatibility
+    const mapped = journals.map(j => ({
       ...j,
       is_favorite: j.favorite,
-    })),
-    "Journals fetched successfully."
-  )
-);
+    }));
+
+    return res.status(200).json(
+      responses.okResponse(mapped, "Journals fetched successfully.")
+    );
   } catch (error) {
     console.error("Fetch Journals Error:", error);
     return res
@@ -59,7 +72,7 @@ async function getOne(req, res) {
 
     const journal = await prisma.journal.findUnique({
       where: { id },
-      include: { user: true },
+      include: { user: true, life_area: true },
     });
 
     if (!journal) {
@@ -82,14 +95,19 @@ async function getOne(req, res) {
 async function update(req, res) {
   try {
     const { id } = req.params;
-    const { content, is_auto } = req.body;
+    const { content, is_auto, category, emoji, favorite, life_area_id } = req.body;
 
     const journal = await prisma.journal.update({
       where: { id },
       data: {
         content,
-        is_auto: is_auto ?? false,
+        is_auto: is_auto ?? undefined,
+        category: category ?? undefined,
+        emoji: emoji ?? undefined,
+        favorite: favorite ?? undefined,
+        life_area_id: life_area_id ?? undefined,
       },
+      include: { life_area: true }
     });
 
     return res.status(200).json(
@@ -106,7 +124,6 @@ async function update(req, res) {
 async function remove(req, res) {
   try {
     const { id } = req.params;
-
 
     await prisma.journal.delete({
       where: { id },
@@ -129,21 +146,20 @@ async function toggleFavorite(req, res) {
     const { is_favorite } = req.body;
 
     const journal = await prisma.journal.update({
-  where: { id },
-  data: { favorite: is_favorite },
-});
+      where: { id },
+      data: { favorite: is_favorite },
+      include: { life_area: true }
+    });
 
-
-  return res.status(200).json(
-  responses.updateSuccessResponse(
-    {
-      ...journal,
-      is_favorite: journal.favorite, 
-    },
-    "Favorite updated successfully."
-  )
-);
-
+    return res.status(200).json(
+      responses.updateSuccessResponse(
+        {
+          ...journal,
+          is_favorite: journal.favorite,
+        },
+        "Favorite updated successfully."
+      )
+    );
   } catch (error) {
     console.error("Toggle Favorite Error:", error);
     return res
@@ -152,28 +168,40 @@ async function toggleFavorite(req, res) {
   }
 }
 
-
-
-
 async function getStats(req, res) {
   try {
     const { userId } = req.user;
+    const { life_area_id } = req.query;
+
+    const where = { user_id: userId };
+    if (life_area_id) where.life_area_id = life_area_id;
+
     const journals = await prisma.journal.findMany({
-      where: { user_id: userId },
-      orderBy: { created_at: "desc" },
+      where,
+      orderBy: { created_at: "desc" }
     });
 
     const total = journals.length;
 
+    // calcular streak corretamente
     let streak = 0;
-    let lastDate = null;
-    journals.forEach((j) => {
-      const current = dayjs(j.created_at).startOf("day");
-      if (!lastDate || lastDate.diff(current, "day") === 1) {
-        streak++;
-        lastDate = current;
+    if (journals.length > 0) {
+      let last = dayjs(journals[0].created_at).startOf("day");
+      streak = 1;
+      for (let i = 1; i < journals.length; i++) {
+        const cur = dayjs(journals[i].created_at).startOf("day");
+        const diff = last.diff(cur, "day");
+        if (diff === 1) {
+          streak++;
+          last = cur;
+        } else if (diff === 0) {
+          // mesma data, ignora
+          continue;
+        } else {
+          break;
+        }
       }
-    });
+    }
 
     return res
       .status(200)
@@ -189,15 +217,20 @@ async function getStats(req, res) {
 async function getReflection(req, res) {
   try {
     const { userId } = req.user;
+    const { life_area_id } = req.query;
+
     const recent = await prisma.journal.findMany({
-      where: { user_id: userId },
+      where: {
+        user_id: userId,
+        ...(life_area_id ? { life_area_id } : {})
+      },
       orderBy: { created_at: "desc" },
       take: 7,
     });
 
     const prompt = `
 Você é o Jarvis, um assistente reflexivo.
-Aqui estão as últimas anotações do usuário:
+Aqui estão as últimas anotações do usuário${life_area_id ? " — filtradas por life_area_id: " + life_area_id : ""}:
 ${recent.map((j) => `- ${j.content}`).join("\n")}
 
 Crie uma reflexão motivadora curta (1 parágrafo), como:
