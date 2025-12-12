@@ -147,6 +147,9 @@ model journal {
   category      String?
   emoji         String?
   favorite      Boolean  @default(false)
+  life_area_id  String?
+  life_area     life_area? @relation(fields: [life_area_id], references: [id])
+
   user          user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
@@ -186,9 +189,11 @@ model life_area {
   color      String?
   user       user                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
   sub_goals  life_area_sub_goal[]
+  journals   journal[]
 
   @@unique([user_id, name])
 }
+
 
 model life_area_sub_goal {
   id              String        @id @default(uuid())
