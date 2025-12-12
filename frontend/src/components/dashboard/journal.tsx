@@ -82,36 +82,32 @@ const JournalPage = ({ journal: initialJournal }: any) => {
     })();
   }, []);
 
-  /** CRIAÇÃO DE JOURNAL */
-  const handleSubmit = async () => {
-    if (!journalInput.trim()) return;
+const handleSubmit = async () => {
+  if (!journalInput.trim()) return;
 
-    setIsLoading(true);
+  setIsLoading(true);
 
-    try {
-      const payload: any = {
-        content: journalInput.trim(),
-        is_auto: false,
-        category: createCategory || undefined,
-        emoji: createEmoji || undefined,
-        life_area_id:
-          createLifeAreaId === "all" ? undefined : createLifeAreaId,
-      };
+  try {
+    // Entrada manual agora tem SOMENTE conteúdo
+    const payload = {
+      content: journalInput.trim(),
+      is_auto: false,
+    };
 
-      const resp = await API.addJournal(payload);
-      const created = resp.data.data || resp.data;
-      setEntries((prev) => [created, ...prev]);
+    const resp = await API.addJournal(payload);
+    const created = resp.data.data || resp.data;
 
-      setJournalInput("");
-      setCreateCategory("");
-      setCreateEmoji("");
-      setCreateLifeAreaId("all");
-    } catch (err) {
-      console.error("Erro ao criar journal", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    setEntries((prev) => [created, ...prev]);
+
+    setJournalInput("");
+
+  } catch (err: any) {
+    console.error("Erro ao criar journal", err?.response?.data || err);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -384,44 +380,6 @@ const JournalPage = ({ journal: initialJournal }: any) => {
 
         {/* ADD ENTRY */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
-          {/* CAMPOS DE CRIAÇÃO (life area, categoria, emoji) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-            <select
-              value={createLifeAreaId}
-              onChange={(e) => setCreateLifeAreaId(e.target.value)}
-              className="p-2 border rounded"
-            >
-              <option value="all">Selecione a Life Area</option>
-              {lifeAreas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={createCategory}
-              onChange={(e) => setCreateCategory(e.target.value)}
-              className="p-2 border rounded"
-            >
-              <option value="">Categoria</option>
-              <option value="Reflexão">Reflexão</option>
-              <option value="Insight">Insight</option>
-              <option value="Progresso">Progresso</option>
-            </select>
-
-            <select
-              value={createEmoji}
-              onChange={(e) => setCreateEmoji(e.target.value)}
-              className="p-2 border rounded"
-            >
-              <option value="">Emoji</option>
-              <option value="🧠">🧠</option>
-              <option value="💪">💪</option>
-              <option value="🔥">🔥</option>
-              <option value="❤️">❤️</option>
-            </select>
-          </div>
 
           {/* Textarea */}
           <div className="flex items-start gap-3">
