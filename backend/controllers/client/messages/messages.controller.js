@@ -90,6 +90,15 @@ Examples of natural Jarvis replies:
 - “Sei que foi difícil, mas você conseguiu. Continue assim!”
 - “Ótimo trabalho hoje! Cada passo importa.”
 
+Journal Classification Rules:
+- If the message contains gym, treino, academia → category: “Progress”, emoji: “💪”, life_area_name: “Health”
+- If the message expresses emotion (triste, cansado, ansioso) → category: “Emotion”, emoji: “😔”
+- If the user had an idea → category: “Insight”, emoji: “💡”
+- If the message is a reflection → category: “Reflection”, emoji: “🧠”
+- If message is about work, carreira, produtividade → life_area_name: “Career”
+- If message is about dinheiro, gastos, finanças → life_area_name: “Finance”
+- If message is about relacionamento, pessoas → life_area_name: “Relationships”
+
 ⚠️ OUTPUT RULES — MANDATORY ⚠️
 
 From now on, you MUST NEVER respond with text outside the JSON.
@@ -137,8 +146,11 @@ consider it an error.
     "remind_at": "ISO 8601 datetime"
   } | null,
   "journal": {
-    "content": "string"
-  } | null,
+  "content": "string",
+  "emoji": "string (emoji)",
+  "category": "string (Reflection | Insight | Progress | Emotion | Habit)",
+  "life_area_name": "string (ex: Health, Finance, Career, Relationships, Spirituality)"
+} | null,
   "calendar_event": {
     "title": "string",
     "description": "string",
@@ -512,6 +524,8 @@ module.exports = {
   generateInactivityMessage,
 };
 
+
+
     const pastMessages = await prisma.chat_message.findMany({
       where: { conversation_id: conversationId },
       orderBy: { created_at: "asc" },
@@ -744,15 +758,55 @@ if (phone) {
     }
 
     if (data.journal) {
-  // Criar uma entrada de diário para cada mensagem relevante
+  // Normalizar entrada
+  const content = data.journal.content?.trim();
+  const emoji = data.journal.emoji || null;
+  const category = data.journal.category || "Reflection";
+  const areaName = data.journal.life_area_name?.trim() || null;
+
+  let lifeAreaId = null;
+
+  // Se a IA informou uma life area — criamos se não existir
+  if (areaName) {
+    const areaColors = {
+      Health: "#00c6ff",
+      Finance: "#00ffae",
+      Career: "#b180f0",
+      Relationships: "#ff5c8a",
+      Spirituality: "#ffcc33",
+      General: "#ffffff",
+    };
+
+    const color = areaColors[areaName] || "#ffffff";
+
+    const lifeArea = await prisma.life_area.upsert({
+      where: {
+        user_id_name: {
+          user_id: userId,
+          name: areaName,
+        },
+      },
+      update: {},
+      create: {
+        user_id: userId,
+        name: areaName,
+        color,
+      },
+    });
+
+    lifeAreaId = lifeArea.id;
+  }
+
+  // Criar o Journal
   await prisma.journal.create({
     data: {
       user_id: userId,
-      content: data.journal.content,
-      emoji: data.journal.emoji,
-      category: data.journal.category,
-      favorite: false, // Pode ser ajustado conforme necessário
-      is_auto: true, // Indica que é uma entrada automática da IA
+      content,
+      emoji,
+      category,
+      is_auto: true,
+      favorite: false,
+      life_area_id: lifeAreaId,
     },
   });
 }
