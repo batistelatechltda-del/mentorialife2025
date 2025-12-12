@@ -13,6 +13,7 @@ const { emailTemplateForReminder } = require("./email/emailTemplateForReminder")
 const { sendSMS } = require("./configs/twilio");  // Certifique-se de que o caminho está correto
 const dayjs = require("dayjs");
 const { pusher } = require("./configs/pusher");
+require("./jobs/journalReflectionCron");
 
 const envFile =
   process.env.NODE_ENV == "development"
