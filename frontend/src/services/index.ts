@@ -60,6 +60,7 @@ interface CustomAxiosInstance {
   getUser: () => Promise<any>;
   getAllLifeArea: () => Promise<any>;
   toggleFavoriteJournal: (id: string, data: any) => Promise<any>;
+  getAllJournal: () => Promise<any>;
 }
 
 const axiosInstance = axios.create({
@@ -176,6 +177,9 @@ axiosInstance.updateGoals = (id: any, data: any) => {
 };
 axiosInstance.updateReminder = (id: any, data: any) => {
   return axiosInstance.patch(`/client/reminder/update/${id}`, data);
+};
+axiosInstance.getAllJournal = () => {
+  return axiosInstance.get(`/client/journal/get-all`);
 };
 
 axiosInstance.updateEvent = (id: any, data: any) => {
