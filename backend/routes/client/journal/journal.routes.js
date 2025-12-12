@@ -30,14 +30,14 @@ router.use(verifyUserByToken);
 // Criação e listagem padrão
 router.post("/create", validateRequest(createJournalSchema), create);
 router.get("/get-all", getAll);
-// Novos recursos da FASE 4
-// 🔹 Alternar favorito
+
+// Alternar favorito
 router.patch("/:id/favorite", toggleFavorite);
 
-// 🔹 Estatísticas (total + sequência de dias seguidos)
+// Estatísticas
 router.get("/stats/all", getStats);
 
-// 🔹 Reflexão automática do Jarvis (IA)
+// Reflexão automática com optional ?life_area_id=...
 router.get("/reflection/ai", getReflection);
 
 module.exports = router;
