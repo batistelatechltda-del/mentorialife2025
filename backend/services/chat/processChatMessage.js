@@ -37,6 +37,16 @@ async function processChatMessage({ userId, message, source = "WEB" }) {
     take: 10,
   });
 
+  // 🕒 CONTEXTO DE DATA/HORA (⬅️ ADICIONE AQUI)
+  const now = dayjs();
+  const isoNow = now.toISOString();
+  const formattedTime = now.format("HH:mm");
+  const readableDate = now.format("DD/MM/YYYY");
+  const timezone =
+    process.env.TZ ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    "UTC";
+
   // 4. Prompt (JSON obrigatório)
   const systemPrompt = `You are Mentor: Jarvis — a smart, confident, emotionally intelligent personal mentor who speaks like a real human (not a generic AI).
 
