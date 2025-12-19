@@ -113,11 +113,18 @@ model chat_message {
   message            String
   is_flagged         Boolean              @default(false)
   created_at         DateTime             @default(now())
+  source          message_source @default(WEB)
   sender             message_sender
   conversation       conversation         @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
   life_area_sub_goal life_area_sub_goal[]
 
   @@index([conversation_id])
+}
+
+enum message_source {
+  WEB
+  WHATSAPP
+  SMS
 }
 
 model goal {
@@ -173,11 +180,20 @@ model calendar_event {
   description   String?
   start_time    DateTime
   end_time      DateTime?
+  emoji         String?
+  type          calendar_event_type @default(EVENT)
+  is_recurring  Boolean   @default(false)
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
   is_completed  Boolean   @default(false)
   is_email_sent Boolean   @default(false)
+
   user          user      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+enum calendar_event_type {
+  EVENT     // evento agendado
+  ROUTINE   // rotina diária
 }
 
 model life_area {
