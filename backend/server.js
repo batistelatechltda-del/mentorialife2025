@@ -9,11 +9,19 @@ const { createAndSendEmail } = require("./configs/email");
 const { prisma } = require("./configs/prisma");
 const pushRoutes = require("./routes/push");  // Importa as rotas de push
 const { emailTemplateForReminder } = require("./email/emailTemplateForReminder");
-
 const { sendSMS } = require("./configs/twilio");  // Certifique-se de que o caminho está correto
 const dayjs = require("dayjs");
 const { pusher } = require("./configs/pusher");
+const { startWhatsApp } = require("./services/whatsapp/whatsapp.service");
+const { handleIncomingWhatsApp } = require("./services/whatsapp/whatsapp.handler");
+
 require("./jobs/journalReflectionCron");
+
+startWhatsApp(async ({ from, text }) => {
+  const phone = from.replace("@s.whatsapp.net", "");
+  await handleIncomingWhatsApp({ phone, text });
+});
+
 
 const envFile =
   process.env.NODE_ENV == "development"
