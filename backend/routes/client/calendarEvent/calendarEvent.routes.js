@@ -17,12 +17,12 @@ const {
   remove,
 } = require("../../../controllers/client/calendarEvent/calendarEvent.controller");
 
+router.use(verifyUserByToken);
+
+router.post("/create", validateRequest(createCalendarEventSchema), create);
+router.get("/get-all", getAll);
 router.get("/get/:id", getOne);
 router.patch("/update/:id", validateRequest(updateCalendarEventSchema), update);
 router.delete("/delete/:id", remove);
-
-router.use(verifyUserByToken);
-router.post("/create", validateRequest(createCalendarEventSchema), create);
-router.get("/get-all", getAll);
 
 module.exports = router;
