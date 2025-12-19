@@ -30,6 +30,10 @@ interface CalendarEvent {
   is_completed: boolean;
   created_at: string;
   updated_at: string;
+
+  // 🔽 NOVOS
+  type?: "EVENT" | "ROUTINE";
+  is_recurring?: boolean;
 }
 
 const CalendarPage = ({ initEvents }: any) => {
@@ -49,6 +53,9 @@ const CalendarPage = ({ initEvents }: any) => {
 
   const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [selectedDayEvents, setSelectedDayEvents] = useState<CalendarEvent[]>([]);
+const [showDayDetails, setShowDayDetails] = useState(false);
+
 
   const goToPreviousMonth = () => {
     setCurrentDate(
@@ -302,8 +309,18 @@ const CalendarPage = ({ initEvents }: any) => {
       days.push(
         <td key={`day-${day}`} className="p-1">
           <div
-            className={`relative h-24 border border-gray-200 dark:border-gray-700 rounded-md p-1 ${
-              isToday ? "bg-blue-50 dark:bg-blue-900/20" : ""
+  onMouseEnter={() => {
+    setSelectedDayEvents(getEventsForDay(day));
+    setShowDayDetails(true);
+  }}
+  onClick={() => {
+    setSelectedDayEvents(getEventsForDay(day));
+    setShowDayDetails(true);
+  }}
+  className={`relative h-24 border border-gray-200 dark:border-gray-700 rounded-md p-1 ${
+              isToday
+  ? "bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500"
+  : ""
             }`}
           >
             <div
@@ -323,11 +340,14 @@ const CalendarPage = ({ initEvents }: any) => {
                   .map((event) => (
                     <div
                       key={event.id}
-                      className={`group text-xs p-1 mb-1 rounded truncate cursor-pointer relative ${
-                        event.is_completed
-                          ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
-                          : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
-                      }`}
+                      className={`group text-xs p-1 mb-1 rounded truncate cursor-pointer relative
+  ${
+    event.type === "ROUTINE"
+      ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
+      : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+  }
+  ${event.is_completed ? "opacity-60 line-through" : ""}
+`}
                       onClick={() => handleEditEvent(event)}
                       title={`${event.title || "No Title"} - Click to edit`}
                     >
@@ -661,12 +681,63 @@ const CalendarPage = ({ initEvents }: any) => {
                       </th>
                     </tr>
                   </thead>
-                  <tbody>{renderCalendarGrid()}</tbody>
+                  <tbody>
+  {view === "month" && renderCalendarGrid()}
+  {view === "week" && (
+    <tr>
+      <td colSpan={7} className="p-4">
+        <p className="text-center text-gray-500">
+          Week view (em expansão)
+        </p>
+      </td>
+    </tr>
+  )}
+  {view === "day" && (
+    <tr>
+      <td colSpan={7} className="p-4">
+        <p className="text-center text-gray-500">
+          Day view (em expansão)
+        </p>
+      </td>
+    </tr>
+  )}
+</tbody>
                 </table>
               </div>
             </div>
           </div>
         </div>
+        {showDayDetails && selectedDayEvents.length > 0 && (
+  <div className="fixed right-4 top-24 z-40 w-80 bg-white dark:bg-gray-800 shadow-xl rounded-lg p-4">
+    <div className="flex justify-between items-center mb-2">
+      <h3 className="font-semibold text-gray-900 dark:text-white">
+        Day details
+      </h3>
+      <button
+        onClick={() => setShowDayDetails(false)}
+        className="text-gray-400 hover:text-gray-600"
+      >
+        <X size={16} />
+      </button>
+    </div>
+
+    {selectedDayEvents.map((ev) => (
+      <div
+        key={ev.id}
+        className={`mb-2 p-2 rounded ${
+          ev.type === "ROUTINE"
+            ? "bg-green-50 dark:bg-green-900/20"
+            : "bg-blue-50 dark:bg-blue-900/20"
+        }`}
+      >
+        <div className="font-medium">{ev.title}</div>
+        <div className="text-xs opacity-70">
+          {formatTime(ev.start_time)}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
       </main>
 
       {(isAddEventModalOpen || isEditEventModalOpen) && (
