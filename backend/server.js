@@ -37,7 +37,7 @@ env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || "0.0.0.0";
 
-// CORS dinâmico (whitelist)
+
 const WHITELIST = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
@@ -192,7 +192,6 @@ cron.schedule("*/5 * * * *", async () => {
   const sendNotifications = async (items, type) => {
     const promises = items.map(async (item) => {
       const username = item?.user?.profile?.full_name;
-      const phone = item?.user?.profile?.phone_number;
       const userId = item.user_id;
 
       let title = "";
@@ -219,10 +218,6 @@ cron.schedule("*/5 * * * *", async () => {
           text: description,
           html,
         });
-
-        if (phone) {
-          await sendSMS(phone, `${title}: ${description}`);
-        }
 
         const conversation = await prisma.conversation.findFirst({
           where: { user_id: userId },
