@@ -5,9 +5,10 @@ const {
 } = require("@whiskeysockets/baileys");
 
 const P = require("pino");
-const qrcode = require("qrcode-terminal");
+const QRCode = require("qrcode");
 
 let sock;
+let lastQrBase64 = null;
 
 async function startWhatsApp(onMessage) {
   const { state, saveCreds } = await useMultiFileAuthState("whatsapp_auth");
@@ -15,18 +16,22 @@ async function startWhatsApp(onMessage) {
   sock = makeWASocket({
     logger: P({ level: "silent" }),
     auth: state,
-    printQRInTerminal: true
+    printQRInTerminal: false // ❌ desliga terminal
   });
 
   sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
+  sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
-      console.log("📱 Escaneie o QR Code para conectar o WhatsApp");
-      qrcode.generate(qr, { small: true });
+      console.log("📸 QR Code gerado (disponível via /whatsapp/qr)");
+
+      // gera imagem base64
+      lastQrBase64 = await QRCode.toDataURL(qr);
     }
 
     if (connection === "close") {
+      lastQrBase64 = null;
+
       const reason = lastDisconnect?.error?.output?.statusCode;
       if (reason !== DisconnectReason.loggedOut) {
         startWhatsApp(onMessage);
@@ -34,6 +39,7 @@ async function startWhatsApp(onMessage) {
     }
 
     if (connection === "open") {
+      lastQrBase64 = null;
       console.log("✅ WhatsApp conectado com sucesso");
     }
   });
@@ -48,9 +54,14 @@ async function startWhatsApp(onMessage) {
 
     if (!text) return;
 
-    const from = msg.key.remoteJid; // 5511999999999@s.whatsapp.net
+    const from = msg.key.remoteJid;
     await onMessage({ from, text });
   });
+}
+
+// 📌 endpoint vai usar isso
+function getWhatsAppQr() {
+  return lastQrBase64;
 }
 
 async function sendWhatsApp(to, message) {
@@ -65,5 +76,6 @@ async function sendWhatsApp(to, message) {
 
 module.exports = {
   startWhatsApp,
-  sendWhatsApp
+  sendWhatsApp,
+  getWhatsAppQr
 };
