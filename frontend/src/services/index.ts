@@ -162,7 +162,11 @@ axiosInstance.createMessage = (data: any) => {
 };
 
 axiosInstance.createEvent = (data: any) => {
-  return axiosInstance.post("/client/calendar-event/create", data);
+  // Aqui, você pode adicionar um campo `type` para eventos de rotina, se necessário
+  return axiosInstance.post("/client/calendar-event/create", {
+    ...data,
+    type: data.is_recurring ? "ROUTINE" : "EVENT", // Se for recorrente, define como rotina
+  });
 };
 
 axiosInstance.getConversation = () => {
@@ -183,7 +187,10 @@ axiosInstance.getAllJournal = () => {
 };
 
 axiosInstance.updateEvent = (id: any, data: any) => {
-  return axiosInstance.patch(`/client/calendar-event/update/${id}`, data);
+  return axiosInstance.patch(`/client/calendar-event/update/${id}`, {
+    ...data,
+    type: data.is_recurring ? "ROUTINE" : "EVENT", // Ajuste no update também
+  });
 };
 axiosInstance.updateJournal = (id: any, data: any) => {
   return axiosInstance.patch(`/client/journal/update/${id}`, data);
