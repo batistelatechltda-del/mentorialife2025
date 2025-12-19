@@ -12,16 +12,17 @@ const { emailTemplateForReminder } = require("./email/emailTemplateForReminder")
 const { sendSMS } = require("./configs/twilio");  // Certifique-se de que o caminho está correto
 const dayjs = require("dayjs");
 const { pusher } = require("./configs/pusher");
-const { startWhatsApp } = require("./services/whatsapp/whatsapp.service");
+const {
+  startWhatsApp,
+  getWhatsAppQr
+} = require("./services/whatsapp/whatsapp.service");
 const { handleIncomingWhatsApp } = require("./services/whatsapp/whatsapp.handler");
 
-require("./jobs/journalReflectionCron");
 
 startWhatsApp(async ({ from, text }) => {
   const phone = from.replace("@s.whatsapp.net", "");
   await handleIncomingWhatsApp({ phone, text });
 });
-
 
 const envFile =
   process.env.NODE_ENV == "development"
@@ -34,7 +35,7 @@ const envFile =
 
 env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
-const HOST = process.env.HOST || "0.0.0.0";
+const HOST = process.env.HOST || "192.168.18.71";
 
 // CORS dinâmico (whitelist)
 const WHITELIST = [
@@ -43,6 +44,8 @@ const WHITELIST = [
   "https://www.mentoraiforlife.com",
   "https://mentoraiforlife.com",
 ];
+
+
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -66,6 +69,38 @@ app.use("/api/notifications", notificationRoutes);
 app.use(cors(corsOptions)); // Habilitar CORS para o backend
 
 app.use("/api/push", pushRoutes);  // Registra a rota de push no caminho '/api/push'
+app.get("/whatsapp/qr", (req, res) => {
+  const qr = getWhatsAppQr();
+
+  if (!qr) {
+    return res.status(404).send(`
+      <html>
+        <body style="font-family:sans-serif;text-align:center;margin-top:40px">
+          <h2>WhatsApp já conectado ✅</h2>
+          <p>Ou o QR ainda não foi gerado.</p>
+        </body>
+      </html>
+    `);
+  }
+
+  res.send(`
+    <html>
+      <body style="
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        height:100vh;
+        font-family:sans-serif;
+        background:#f7f7f7
+      ">
+        <h2>📱 Escaneie o QR Code do WhatsApp</h2>
+        <img src="${qr}" style="width:320px;height:320px" />
+        <p>Atualize a página se o QR expirar</p>
+      </body>
+    </html>
+  `);
+});
 
 app.listen(PORT, HOST, () => {
   logger.info(`🚀 Server is listening at http://${HOST}:${PORT}
