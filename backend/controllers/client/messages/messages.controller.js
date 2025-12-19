@@ -4,8 +4,11 @@ const openai = require("../../../configs/openAi");
 const { jsonrepair } = require("jsonrepair");
 const dayjs = require("dayjs");
 const chrono = require("chrono-node");
-const { sendSMS, sendWhatsApp } = require("../../../configs/twilio");
+const { sendSMS } = require("../../../configs/twilio");
 const { pusher } = require("../../../configs/pusher");
+
+
+
 
 async function create(req, res, next) {
   try {
@@ -392,7 +395,7 @@ const sendReminderMessage = async (reminder) => {
 
   // Chama o modelo GPT para gerar uma resposta dinâmica para o lembrete
   const gptResponse = await openai.chat.completions.create({
-    model: "gpt-4.1",
+    model: "gpt-5-mini",
     messages: [{ role: "system", content: systemPrompt }],
     temperature: 0.7,
     max_tokens: 100,
@@ -634,8 +637,6 @@ const phone = user.profile.phone_number;
 if (phone) {
   try {
     if (phone.startsWith("+")) {
-      await sendWhatsApp(phone, data.reply);
-    } else {
       await sendSMS(phone, data.reply);
     }
   } catch (e) {
