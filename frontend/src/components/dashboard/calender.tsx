@@ -241,6 +241,8 @@ const [showDayDetails, setShowDayDetails] = useState(false);
     const startTime = new Date(`${newEvent.date}T${newEvent.startTime}:00`);
     const endTime = new Date(`${newEvent.date}T${newEvent.endTime}:00`);
 
+    
+
     const newCalendarEvent: CalendarEvent = {
       id: Date.now().toString(),
       user_id: "f83ac7cb-db93-4917-bc06-da38ab3bb696",
