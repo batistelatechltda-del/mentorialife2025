@@ -37,7 +37,6 @@ async function getCalender(): Promise<CalendarEvent[]> {
       title: event.title,
       description: event.description ?? null,
 
-      // 🔥 NORMALIZAÇÃO CRÍTICA
       start_time: event.start,
       end_time: event.end,
 
@@ -46,6 +45,8 @@ async function getCalender(): Promise<CalendarEvent[]> {
       updated_at: event.updated_at ?? new Date().toISOString(),
 
       type: event.type ?? "EVENT",
+      emoji: event.emoji ?? "📅",
+      color: event.color,
     }));
   } catch (err) {
     console.log(err);
