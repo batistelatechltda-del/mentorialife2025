@@ -255,6 +255,13 @@ const page: React.FC = () => {
     }));
   };
 
+  useEffect(() => {
+  if (graphRef.current) {
+    graphRef.current.zoom(1.8, 1500);
+    graphRef.current.centerAt(0, 0, 1500);
+  }
+}, [graphData]);
+
   const handleNodeClick = useCallback(
     (node: any) => {
       setSelectedNode(node);
@@ -301,25 +308,36 @@ const page: React.FC = () => {
 
       ctx.beginPath();
       if (type === "center") {
-        ctx.fillStyle = "rgba(0, 243, 255, 0.2)";
-        ctx.arc(x, y, size * 1.2, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = isHighlighted ? 3 / globalScale : 2 / globalScale;
-        ctx.arc(x, y, size, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 15;
-        ctx.strokeStyle = color;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+         ctx.beginPath();
+  ctx.fillStyle = "rgba(0,243,255,0.08)";
+  ctx.arc(x, y, size * 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.fillStyle = "rgba(0,243,255,0.18)";
+  ctx.arc(x, y, size * 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.fillStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 25;
+  ctx.arc(x, y, size, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
       } else if (type === "area") {
-        ctx.fillStyle = `rgba(${hexToRgb(color)}, 0.2)`;
-        ctx.arc(x, y, size, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = isHighlighted ? 3 / globalScale : 1.5 / globalScale;
-        ctx.stroke();
+        ctx.beginPath();
+  ctx.fillStyle = `rgba(${hexToRgb(color)}, 0.12)`;
+  ctx.arc(x, y, size * 1.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Orbe principal
+  ctx.beginPath();
+  ctx.fillStyle = `rgba(${hexToRgb(color)}, 0.35)`;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = isHighlighted ? 18 : 10;
+  ctx.arc(x, y, size, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
         if (isHighlighted) {
           ctx.shadowColor = color;
           ctx.shadowBlur = 10;
@@ -334,6 +352,10 @@ const page: React.FC = () => {
           ctx.fillStyle = `rgba(${hexToRgb(color)}, ${
             isHighlighted ? 0.3 : 0.15
           })`;
+          ctx.shadowColor = color;
+ctx.shadowBlur = isHighlighted ? 12 : 6;
+ctx.stroke();
+ctx.shadowBlur = 0;
           roundRect(ctx, x - width / 2, y - height / 2, width, height, radius);
           ctx.fill();
           ctx.strokeStyle = color;
