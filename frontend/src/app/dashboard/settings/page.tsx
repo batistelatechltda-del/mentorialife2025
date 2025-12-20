@@ -40,7 +40,8 @@ interface SettingsState {
   useGoogleSpeech: boolean;
   autoSendAfterSpeech: boolean;
 
-  theme: "light" | "dark" | "system";
+  enableStars: boolean;
+
   fontSize: "small" | "medium" | "large";
   compactMode: boolean;
 
@@ -56,6 +57,7 @@ const Settings = () => {
     inAppReminders: true,
     pushNotifications: false,
     soundNotifications: true,
+    enableStars: true, 
     dataCollection: true,
     sessionAnalytics: true,
     shareUsageData: false,
@@ -64,7 +66,6 @@ const Settings = () => {
     enablePunctuation: true,
     useGoogleSpeech: false,
     autoSendAfterSpeech: true,
-    theme: "dark",
     fontSize: "medium",
     compactMode: false,
     currentPassword: "",
@@ -410,7 +411,13 @@ const Settings = () => {
                     <Shield className="h-6 w-6 text-blue-400" />
                     <span>Privacy & Data</span>
                   </h2>
-
+<ToggleSwitch
+  label="Star Background"
+  description="Enable animated star field in the background"
+  checked={settings.enableStars}
+  onChange={(checked) => handleToggle("enableStars", checked)}
+  icon={Palette}
+/>
                   <div className="space-y-4">
                     <ToggleSwitch
                       label="Data Collection"
@@ -441,6 +448,7 @@ const Settings = () => {
                       }
                       icon={Shield}
                     />
+                    
                   </div>
                 </div>
               )}
