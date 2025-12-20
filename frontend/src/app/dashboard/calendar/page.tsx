@@ -30,12 +30,23 @@ async function getCalender(): Promise<CalendarEvent[]> {
 
     const data = await res.json();
 
-    return data?.data == null
-      ? []
-      : (data.data as CalendarEvent[]).map((event) => ({
-          ...event,
-          type: event.type ?? "EVENT",
-        }));
+    if (!data?.data) return [];
+
+    return data.data.map((event: any) => ({
+      id: event.id,
+      title: event.title,
+      description: event.description ?? null,
+
+      // 🔥 NORMALIZAÇÃO CRÍTICA
+      start_time: event.start,
+      end_time: event.end,
+
+      is_completed: event.isCompleted ?? false,
+      created_at: event.created_at ?? new Date().toISOString(),
+      updated_at: event.updated_at ?? new Date().toISOString(),
+
+      type: event.type ?? "EVENT",
+    }));
   } catch (err) {
     console.log(err);
     return [];
