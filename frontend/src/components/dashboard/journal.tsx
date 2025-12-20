@@ -194,7 +194,7 @@ const handleSubmit = async () => {
   const groupedByLifeArea = [
     {
       id: "all",
-      name: "Todos os Diários",
+      name: "All Journals",
       journals: filteredEntries,
     },
     ...lifeAreas
@@ -343,7 +343,7 @@ const handleSubmit = async () => {
             onChange={(e) => setFilterLifeArea(e.target.value)}
             className="p-2 border rounded"
           >
-            <option value="all">Todas as Life Areas</option>
+            <option value="all">All Areas of Life</option>
             {lifeAreas.map((area) => (
               <option key={area.id} value={area.id}>
                 {area.name}
@@ -357,10 +357,10 @@ const handleSubmit = async () => {
             onChange={(e) => setFilterCategory(e.target.value)}
             className="p-2 border rounded"
           >
-            <option value="all">Todas Categorias</option>
-            <option value="Reflexão">Reflexão</option>
+            <option value="all">All Categories</option>
+            <option value="Reflexão">Reflection</option>
             <option value="Insight">Insight</option>
-            <option value="Progresso">Progresso</option>
+            <option value="Progresso">Progress</option>
           </select>
 
           
