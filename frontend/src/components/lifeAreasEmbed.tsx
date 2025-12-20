@@ -450,11 +450,22 @@ const LifeAreasEmbed: React.FC<LifeAreasEmbedProps> = ({
                   zIndex: 1,
                 }}
               >
+                <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+      <feMerge>
+        <feMergeNode in="coloredBlur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  
                 <line
-                  x1={lineStartX}
-                  y1={lineStartY}
-                  x2={lineEndX}
-                  y2={lineEndY}
+  x1={lineStartX}
+  y1={lineStartY}
+  x2={lineEndX}
+  y2={lineEndY}
+  filter="url(#glow)"
                   stroke={
                     nodesToAnimate.has(area.id) || hoveredNode === area.id
                       ? `rgba(${hexToRgb(area.color)}, 0.7)`
@@ -466,6 +477,7 @@ const LifeAreasEmbed: React.FC<LifeAreasEmbedProps> = ({
                       : "1.5"
                   }
                   strokeDasharray={area.id === "finance" ? "4,4" : undefined}
+                  
                 />
               </svg>
 
@@ -579,6 +591,11 @@ const LifeAreasEmbed: React.FC<LifeAreasEmbedProps> = ({
                             strokeDasharray={
                               item.type === "dependent-item" ? "4,4" : undefined
                             }
+                             style={{
+    animation: nodesToAnimate.has(area.id)
+      ? "energyFlow 2s linear infinite"
+      : "none",
+  }}
                           />
                         </svg>
 
@@ -1011,6 +1028,26 @@ const LifeAreasEmbed: React.FC<LifeAreasEmbedProps> = ({
     >
       <div id="embed-stars-container" className="embed-stars-background"></div>
       <style jsx>{`
+      :global(.tree-node::before) {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle,
+    rgba(0, 243, 255, 0.35),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+:global(.tree-node.hovered::before),
+:global(.tree-node.pulse::before) {
+  opacity: 1;
+}
+
         :global(.tree-node) {
           --neon-blue: #00f3ff;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -1018,24 +1055,32 @@ const LifeAreasEmbed: React.FC<LifeAreasEmbedProps> = ({
         }
 
         @keyframes pulse {
-          0% {
-            transform: scale(1);
-            box-shadow: 0 0 8px rgba(0, 243, 255, 0.3);
-          }
-          50% {
-            transform: scale(1.03);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.5),
-              0 0 8px rgba(0, 243, 255, 0.3);
-          }
-          100% {
-            transform: scale(1);
-            box-shadow: 0 0 8px rgba(0, 243, 255, 0.3);
-          }
-        }
+           0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  40% {
+    transform: scale(1.04);
+    filter: brightness(1.3);
+  }
+  70% {
+    transform: scale(0.99);
+    filter: brightness(1.1);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
 
         :global(.pulse) {
           animation: pulse 1s ease-in-out;
         }
+          @keyframes energyFlow {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
 
         @keyframes fadeIn {
           from {
