@@ -12,9 +12,29 @@ import {
   Plus,
 } from "lucide-react";
 
+
+
+
 const Sidebar = ({ sidebarData }: any) => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  const CosmicIcon = ({ Icon, color }: { Icon: any; color: string }) => (
+  <div
+    className={`p-1.5 rounded-md bg-black/40 border border-white/10 
+    shadow-[0_0_12px_${color}]`}
+  >
+    <Icon className={`h-3.5 w-3.5 ${color}`} />
+  </div>
+);
+
+const cosmicItem =
+  "relative overflow-hidden transition-all duration-300 ease-out " +
+  "hover:translate-x-1 hover:scale-[1.02] " +
+  "hover:shadow-[0_0_25px_rgba(168,85,247,0.35)] " +
+  "before:absolute before:inset-0 before:opacity-0 before:transition-opacity before:duration-300 " +
+  "before:bg-gradient-to-r before:from-blue-500/10 before:via-purple-500/10 before:to-pink-500/10 " +
+  "hover:before:opacity-100";
 
   const formatTimeForDisplay = (time: string): string => {
     if (!time) return "";
@@ -65,29 +85,34 @@ const Sidebar = ({ sidebarData }: any) => {
     }
   };
 
-  const SectionHeader = ({
-    icon: Icon,
-    title,
-    count,
-  }: {
-    icon: any;
-    title: string;
-    count: number;
-  }) => (
-    <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-blue-400" />
-        <h3 className="text-sm font-semibold text-white bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-          {title}
-        </h3>
-      </div>
-      {count > 0 && (
-        <span className="bg-blue-900/50 border border-blue-500/30 text-blue-200 text-xs font-medium px-2 py-0.5 rounded-full">
-          {count}
-        </span>
-      )}
+const SectionHeader = ({
+  icon: Icon,
+  title,
+  count,
+  color = "text-blue-400",
+}: {
+  icon: any;
+  title: string;
+  count: number;
+  color?: string;
+}) => (
+  <div className="flex items-center justify-between mb-3">
+    <div className="flex items-center gap-2">
+      <CosmicIcon Icon={Icon} color={color} />
+
+      <h3 className="text-sm font-semibold text-white bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 group-hover:from-pink-400 group-hover:to-blue-400 transition-all duration-300">
+  {title}
+</h3>
+
     </div>
-  );
+
+    {count > 0 && (
+      <span className="bg-blue-900/50 border border-blue-500/30 text-blue-200 text-xs font-medium px-2 py-0.5 rounded-full">
+        {count}
+      </span>
+    )}
+  </div>
+);
 
   const EmptyState = ({ message, icon }: { message: string; icon: string }) => (
     <div className="text-center py-4">
@@ -110,18 +135,20 @@ const Sidebar = ({ sidebarData }: any) => {
   return (
     <nav className="h-full flex flex-col bg-black/40 border-r border-white/10">
       <div className="py-4 px-4 border-b border-white/10">
-        <div className="logo text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
-          MentorAI
-        </div>
+        <div className="logo text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 animate-pulse">
+  MentorAI
+</div>
+
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent">
         {/* Goals */}
         <div className="space-y-3">
           <SectionHeader
-            icon={Target}
-            title="Today's Goals"
-            count={sidebarData.goals?.length || 0}
+             icon={Target}
+  color="text-green-400"
+  title="Today's Goals"
+  count={sidebarData.goals?.length || 0}
           />
           {isLoading ? (
             <LoadingSkeleton />
@@ -129,7 +156,7 @@ const Sidebar = ({ sidebarData }: any) => {
             <div className="flex flex-col gap-y-2">
               {sidebarData.goals.slice(0, 3).map((goal: any, index: any) => (
                 <Link href="/dashboard/goals" key={index}>
-                  <div className="group p-3 bg-black/30 border border-white/10 rounded-lg cursor-pointer">
+                  <div className={`group p-3 bg-black/30 border border-white/10 rounded-lg cursor-pointer ${cosmicItem}`}>
                     <div className="flex items-start gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
                       <p className="text-sm text-white leading-relaxed">
@@ -162,10 +189,11 @@ const Sidebar = ({ sidebarData }: any) => {
         {/* Journals */}
         <div className="space-y-3">
           <SectionHeader
-            icon={BookOpen}
-            title="Recent Journals"
-            count={sidebarData.journals?.length || 0}
-          />
+  icon={BookOpen}
+  color="text-purple-400"
+  title="Recent Journals"
+  count={sidebarData.journals?.length || 0}
+/>
           {isLoading ? (
             <LoadingSkeleton />
           ) : sidebarData.journals?.length > 0 ? (
@@ -208,10 +236,11 @@ const Sidebar = ({ sidebarData }: any) => {
         {/* Events */}
         <div className="space-y-3">
           <SectionHeader
-            icon={Calendar}
-            title="Upcoming Events"
-            count={sidebarData.calendarEvents?.length || 0}
-          />
+  icon={Calendar}
+  color="text-blue-400"
+  title="Upcoming Events"
+  count={sidebarData.calendarEvents?.length || 0}
+/>
           {isLoading ? (
             <LoadingSkeleton />
           ) : sidebarData.calendarEvents?.length > 0 ? (
@@ -258,10 +287,11 @@ const Sidebar = ({ sidebarData }: any) => {
         {/* Reminders */}
         <div className="space-y-3">
           <SectionHeader
-            icon={Bell}
-            title="Active Reminders"
-            count={sidebarData.reminders?.length || 0}
-          />
+  icon={Calendar}
+  color="text-blue-400"
+  title="Upcoming Events"
+  count={sidebarData.calendarEvents?.length || 0}
+/>
           {isLoading ? (
             <LoadingSkeleton />
           ) : sidebarData.reminders?.length > 0 ? (
