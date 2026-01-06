@@ -328,7 +328,7 @@ const [showDayDetails, setShowDayDetails] = useState(false);
             <div
               className={`h-8 w-8 rounded-full mx-auto flex items-center justify-center text-sm mb-1 ${
                 isToday
-                  ? " text-white"
+                  ? " text-black"
                   : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
               }`}
             >
